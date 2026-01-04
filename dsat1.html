@@ -1,15 +1,78 @@
-<html>
-
+<!DOCTYPE html>
+<html lang="ms">
 <head>
-<title>Jadual Tempahan DSAT</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSAT</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0; /* tukar ikut cita rasa awak */
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Logo */
+    #logo-container {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    #logo {
+      max-width: 200px;
+      height: auto;
+    }
+
+    /* Contoh container utama */
+    #main-content {
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+      background-color: #ffffff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+
+    /* Contoh link menu */
+    .menu {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .menu a {
+      text-decoration: none;
+      color: #333;
+      font-weight: bold;
+      padding: 10px 15px;
+      border-radius: 5px;
+      background-color: #e0e0e0;
+    }
+
+    .menu a:hover {
+      background-color: #c0c0c0;
+    }
+  </style>
 </head>
+<body>
 
-<frameset rows="10%,90%" frameborder="no">
+  <!-- Logo Syarikat -->
+  <div id="logo-container">
+    <img src="logo.png" alt="Logo Syarikat" id="logo">
+  </div>
 
-<frame src="frame_1.html">
-<frame src="frame_2.html">
+  <!-- Menu / Link -->
+  <div class="menu">
+    <a href="https://gdienjr.github.io/dsat/dsat_kewangan.html">PENYATA KEWANGAN</a>
+    <a href="https://gdienjr.github.io/dsat/dsat_belanja_urus.html">PERBELANJAAN MENGURUS</a>
+  </div>
 
+  <!-- Kandungan Utama -->
+  <div id="main-content">
+    <h1></h1>
+    <p></p>
+  </div>
 
-</frameset>
-
+</body>
 </html>
