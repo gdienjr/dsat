@@ -7,66 +7,69 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f0f0f0; /* tukar ikut cita rasa awak */
+      background-color: #f0f0f0;
       margin: 0;
       padding: 0;
     }
 
-    /* Logo */
-    #logo-container {
-      text-align: center;
-      margin: 20px 0;
+    /* Header dengan logo dan menu */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
+    /* Logo */
     #logo {
-      max-width: 200px;
+      max-width: 150px;
       height: auto;
     }
 
-    /* Contoh container utama */
-    #main-content {
-      padding: 20px;
-      max-width: 1000px;
-      margin: auto;
-      background-color: #ffffff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      border-radius: 10px;
-    }
-
-    /* Contoh link menu */
-    .menu {
+    /* Menu link */
+    nav {
       display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-bottom: 20px;
+      gap: 15px;
     }
 
-    .menu a {
+    nav a {
       text-decoration: none;
       color: #333;
       font-weight: bold;
-      padding: 10px 15px;
+      padding: 8px 12px;
       border-radius: 5px;
       background-color: #e0e0e0;
     }
 
-    .menu a:hover {
+    nav a:hover {
       background-color: #c0c0c0;
+    }
+
+    /* Kandungan utama */
+    #main-content {
+      padding: 20px;
+      max-width: 1000px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Logo Syarikat -->
-  <div id="logo-container">
-    <img src="logo.png" alt="Logo Syarikat" id="logo">
-  </div>
-
-  <!-- Menu / Link -->
-  <div class="menu">
-    <a href="https://gdienjr.github.io/dsat/dsat_kewangan.html">PENYATA KEWANGAN</a>
-    <a href="https://gdienjr.github.io/dsat/dsat_belanja_urus.html">PERBELANJAAN MENGURUS</a>
-  </div>
+  <!-- Header dengan logo dan menu -->
+  <header>
+    <div id="logo-container">
+      <img src="logo.png" alt="Logo Syarikat" id="logo">
+    </div>
+    <nav>
+      <a href="https://gdienjr.github.io/dsat/dsat_kewangan.html">PENYATA KEWANGAN</a>
+      <a href="https://gdienjr.github.io/dsat/dsat_belanja_urus.html">PERBELANJAAN MENGURUS</a>
+    </nav>
+  </header>
 
   <!-- Kandungan Utama -->
   <div id="main-content">
