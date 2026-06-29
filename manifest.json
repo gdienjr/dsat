@@ -3,8 +3,6 @@
   "short_name": "DSAT",
   "description": "Sistem Tempahan Dewan Sivik Atas Tol",
   "start_url": "/dsat/index.html",
-  "start_url": "/dsat/jadual.html",
-  "start_url": "/dsat/admin.html",
   "display": "standalone",
   "background_color": "#f0f2f5",
   "theme_color": "#0d6efd",
