@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>{
+{
   "name": "Dewan DSAT",
   "short_name": "DSAT",
   "description": "Sistem Tempahan Dewan Sivik Atas Tol",
@@ -21,4 +19,3 @@
     }
   ]
 }
- 
