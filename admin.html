@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin DSAT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; }
+        .kad { max-width: 600px; margin: 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        #loginBox { max-width: 350px; margin: 80px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .kad-tempahan { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; margin-bottom: 12px; }
+        .kad-tempahan:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .btn-slot { min-width: 90px; font-size: 0.85rem; pointer-events: none; }
+        .pemisah { border-top: 2px dashed #dee2e6; margin: 25px 0; }
+        .nav-tabs .nav-link { color: #495057; }
+        .nav-tabs .nav-link.active { font-weight: bold; }
+        .btn-slot-jpkk { min-width: 90px; font-size: 0.85rem; }
+    </style>
+</head>
+<body class="p-3">
+
+<!-- Login -->
+<div id="loginBox">
+    <h5 class="text-center fw-bold mb-1">🔐 Admin DSAT</h5>
+    <p class="text-center text-muted small mb-4">Dewan Sivik Atas Tol</p>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Kata Laluan:</label>
+        <input type="password" id="inputPassword" class="form-control" placeholder="Masukkan kata laluan">
+    </div>
+    <div id="pesanSalah" class="text-danger small mb-2" style="display:none;">❌ Kata laluan salah.</div>
+    <button class="btn btn-primary w-100" onclick="semakPassword()">Masuk</button>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display:none;">
+    <div class="kad">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 class="fw-bold mb-0">🏛️ Dashboard Admin</h5>
+                <small class="text-muted">Dewan Sivik Atas Tol (DSAT)</small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" onclick="keluar()">Keluar</button>
+        </div>
+
+        <!-- Tab -->
+        <ul class="nav nav-tabs mb-3" id="tabMenu">
+            <li class="nav-item">
+                <a class="nav-link active" onclick="tukarTab('pending')" href="#">
+                    📋 Pending <span class="badge bg-warning text-dark ms-1" id="badgePending">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('disahkan')" href="#">
+                    ✅ Disahkan <span class="badge bg-success ms-1" id="badgeDisahkan">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('blok')" href="#">
+                    🚫 Blok Khas
+                </a>
+            </li>
+        </ul>
+
+        <!-- Tab Pending -->
+        <div id="tabPending">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-outline-primary btn-sm" onclick="muatData()">🔄 Refresh</button>
+            </div>
+            <div id="loadingPending" class="text-center py-4" style="display:none;">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2 text-muted small">Memuatkan data...</p>
+            </div>
+            <div id="tiadaPending" class="text-center py-4 text-muted" style="display:none;">
+                <p>✅ Tiada tempahan pending.</p>
+            </div>
+            <div id="senaraiPending"></div>
+        </div>
+
+        <!-- Tab Disahkan -->
+        <div id="tabDisahkan" style="display:none;">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-outline-primary btn-sm" onclick="muatDisahkan()">🔄 Refresh</button>
+            </div>
+            <div id="loadingDisahkan" class="text-center py-4" style="display:none;">
+                <div class="spinner-border text-success"></div>
+                <p class="mt-2 text-muted small">Memuatkan data...</p>
+            </div>
+            <div id="tiadaDisahkan" class="text-center py-4 text-muted" style="display:none;">
+                <p>📭 Tiada tempahan disahkan.</p>
+            </div>
+            <div id="senaraiDisahkan"></div>
+        </div>
+
+        <!-- Tab Blok Khas -->
+        <div id="tabBlok" style="display:none;">
+
+            <!-- Form Blok Baru -->
+            <div class="border rounded p-3 mb-4 bg-light">
+                <h6 class="fw-bold mb-3">➕ Tetapkan Blok Khas</h6>
+
+                <!-- Jenis -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Jenis:</label>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="btnJPKK" onclick="pilihJenis('JPKK')">🏛️ Program JPKK</button>
+                        <button type="button" class="btn btn-outline-danger flex-fill" id="btnKenduri" onclick="pilihJenis('Kenduri')">🎊 Kenduri Kahwin</button>
+                    </div>
+                </div>
+
+                <!-- Nama/Tujuan -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" id="labelTujuan">Nama/Tujuan:</label>
+                    <input type="text" id="inputTujuan" class="form-control" placeholder="cth: Mesyuarat Agung / Kenduri Ahmad">
+                </div>
+
+                <!-- Tarikh JPKK -->
+                <div id="bahagianJPKK" style="display:none;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tarikh:</label>
+                        <input type="date" id="tarikhJPKK" class="form-control" style="max-width:220px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Pilih Slot yang Digunakan:</label>
+                        <div class="mb-1 small text-muted">Klik untuk pilih slot yang akan diblok</div>
+                        <div id="slotJPKK" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Tarikh Kenduri -->
+                <div id="bahagianKenduri" style="display:none;">
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label class="form-label fw-semibold">Tarikh Persediaan:</label>
+                            <input type="date" id="tarikhPersediaan" class="form-control">
+                        </div>
+                        <div class="col">
+                            <label class="form-label fw-semibold">Tarikh Majlis:</label>
+                            <input type="date" id="tarikhMajlis" class="form-control">
+                        </div>
+                    </div>
+                    <div class="alert alert-info small py-2">
+                        💰 Jumlah sewa: <strong>RM300.00</strong> (2 hari × RM150/hari)<br>
+                        🚫 Semua slot akan diblok untuk kedua-dua tarikh
+                    </div>
+                </div>
+
+                <button class="btn btn-danger w-100 mt-2" onclick="simpanBlok()">
+                    🚫 Tetapkan Blok
+                </button>
+            </div>
+
+            <!-- Senarai Blok Sedia Ada -->
+            <h6 class="fw-bold mb-3">📋 Senarai Blok Khas</h6>
+            <div id="loadingBlok" class="text-center py-4" style="display:none;">
+                <div class="spinner-border text-danger"></div>
+                <p class="mt-2 text-muted small">Memuatkan data...</p>
+            </div>
+            <div id="tiadaBlok" class="text-center py-4 text-muted" style="display:none;">
+                <p>📭 Tiada blok khas ditetapkan.</p>
+            </div>
+            <div id="senaraiBlok"></div>
+        </div>
+
+        <!-- Pemisah -->
+        <div class="pemisah"></div>
+
+        <!-- Semak Slot -->
+        <h6 class="fw-bold mb-3">📅 Semak Ketersediaan Slot</h6>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Pilih Tarikh:</label>
+            <input type="date" id="tarikhSlot" class="form-control" style="max-width:220px;">
+        </div>
+        <div id="loadingSlot" class="text-center py-3" style="display:none;">
+            <div class="spinner-border text-primary spinner-border-sm"></div>
+            <span class="ms-2 text-muted small">Menyemak slot...</span>
+        </div>
+        <div id="bahagianSlot" style="display:none;">
+            <div class="mb-2 small text-muted">
+                <span class="badge bg-success">Tersedia</span>
+                <span class="badge bg-secondary ms-1">Ditempah</span>
+                <span class="badge bg-danger ms-1">Penyewa Tetap</span>
+                <span class="badge bg-dark ms-1">Blok Khas</span>
+            </div>
+            <div id="slotViewContainer" class="d-flex flex-wrap gap-2"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal WhatsApp -->
+<div id="modalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;">
+    <div style="display:flex; justify-content:center; align-items:center; height:100%; padding:15px;">
+        <div style="background:white; border-radius:12px; padding:25px; max-width:420px; width:100%; text-align:center; max-height:90vh; overflow-y:auto;">
+            <h5 class="fw-bold mb-3" id="modalTajuk"></h5>
+            <div id="modalMaklumat" class="text-start bg-light p-3 rounded mb-3 small"></div>
+            <p class="text-muted small mb-3" id="modalArahan"></p>
+            <div id="senaraiBtnWA"></div>
+            <button class="btn btn-outline-secondary w-100 mt-2" onclick="tutupModal()">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
+const PASSWORD = "21070";
+const HARGA_SLOT = 10;
+
+let dataModal = {};
+let tabAktif = "pending";
+let jenisBlok = "";
+let slotJPKKDipilih = [];
+
+function format12Jam(masa24) {
+    const jam = parseInt(masa24.toString().split(":")[0]);
+    if (jam === 0) return "12:00 AM";
+    if (jam < 12) return jam + ":00 AM";
+    if (jam === 12) return "12:00 PM";
+    return (jam - 12) + ":00 PM";
+}
+
+function formatTarikh(tarikhStr) {
+    if (!tarikhStr || tarikhStr === "-") return "-";
+    let d = new Date(tarikhStr + "T00:00:00");
+    if (isNaN(d.getTime())) d = new Date(tarikhStr);
+    if (isNaN(d.getTime())) return tarikhStr;
+    return d.toLocaleDateString("ms-MY", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+}
+
+// LOGIN
+function semakPassword() {
+    const input = document.getElementById("inputPassword").value;
+    if (input === PASSWORD) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        muatData();
+    } else {
+        document.getElementById("pesanSalah").style.display = "block";
+    }
+}
+
+document.getElementById("inputPassword").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") semakPassword();
+});
+
+function keluar() {
+    document.getElementById("loginBox").style.display = "block";
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("inputPassword").value = "";
+}
+
+// TUKAR TAB
+function tukarTab(tab) {
+    tabAktif = tab;
+    document.getElementById("tabPending").style.display = tab === "pending" ? "block" : "none";
+    document.getElementById("tabDisahkan").style.display = tab === "disahkan" ? "block" : "none";
+    document.getElementById("tabBlok").style.display = tab === "blok" ? "block" : "none";
+
+    const links = document.querySelectorAll("#tabMenu .nav-link");
+    links[0].classList.toggle("active", tab === "pending");
+    links[1].classList.toggle("active", tab === "disahkan");
+    links[2].classList.toggle("active", tab === "blok");
+
+    if (tab === "disahkan") muatDisahkan();
+    if (tab === "blok") muatBlok();
+}
+
+// MUAT PENDING
+async function muatData() {
+    document.getElementById("loadingPending").style.display = "block";
+    document.getElementById("senaraiPending").innerHTML = "";
+    document.getElementById("tiadaPending").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=pending");
+        const data = await response.json();
+        document.getElementById("loadingPending").style.display = "none";
+        const senarai = data.pending || [];
+        document.getElementById("badgePending").innerText = senarai.length;
+        if (senarai.length === 0) { document.getElementById("tiadaPending").style.display = "block"; return; }
+        renderPending(senarai);
+    } catch (err) {
+        document.getElementById("loadingPending").style.display = "none";
+        alert("Gagal muatkan data.");
+    }
+}
+
+// MUAT DISAHKAN
+async function muatDisahkan() {
+    document.getElementById("loadingDisahkan").style.display = "block";
+    document.getElementById("senaraiDisahkan").innerHTML = "";
+    document.getElementById("tiadaDisahkan").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=disahkan");
+        const data = await response.json();
+        document.getElementById("loadingDisahkan").style.display = "none";
+        const senarai = data.disahkan || [];
+        document.getElementById("badgeDisahkan").innerText = senarai.length;
+        if (senarai.length === 0) { document.getElementById("tiadaDisahkan").style.display = "block"; return; }
+        renderDisahkan(senarai);
+    } catch (err) {
+        document.getElementById("loadingDisahkan").style.display = "none";
+        alert("Gagal muatkan data.");
+    }
+}
+
+// MUAT BLOK
+async function muatBlok() {
+    document.getElementById("loadingBlok").style.display = "block";
+    document.getElementById("senaraiBlok").innerHTML = "";
+    document.getElementById("tiadaBlok").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=blok");
+        const data = await response.json();
+        document.getElementById("loadingBlok").style.display = "none";
+        const senarai = data.blok || [];
+        if (senarai.length === 0) { document.getElementById("tiadaBlok").style.display = "block"; return; }
+        renderBlok(senarai);
+    } catch (err) {
+        document.getElementById("loadingBlok").style.display = "none";
+        alert("Gagal muatkan data.");
+    }
+}
+
+// RENDER PENDING
+function renderPending(senarai) {
+    const container = document.getElementById("senaraiPending");
+    container.innerHTML = "";
+    senarai.forEach(function(item) {
+        const tarikhPapar = formatTarikh(item.tarikh);
+        const slotPapar = item.slot.map(format12Jam).join(", ");
+        const jumlah = item.slot.length * HARGA_SLOT;
+        const div = document.createElement("div");
+        div.className = "kad-tempahan";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                '<div><span class="badge bg-warning text-dark">Pending</span>' +
+                '<small class="text-muted ms-2">#' + item.baris + '</small></div>' +
+                '<small class="text-muted">' + item.timestamp + '</small>' +
+            '</div>' +
+            '<table class="table table-sm table-borderless mb-2 small">' +
+                '<tr><td style="width:90px">👤 Nama</td><td><strong>' + item.nama + '</strong></td></tr>' +
+                '<tr><td>📞 Telefon</td><td><strong>' + item.telefon + '</strong></td></tr>' +
+                '<tr><td>📅 Tarikh</td><td><strong>' + tarikhPapar + '</strong></td></tr>' +
+                '<tr><td>⏰ Slot</td><td><strong>' + slotPapar + '</strong></td></tr>' +
+                '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + jumlah.toFixed(2) + '</strong></td></tr>' +
+            '</table>' +
+            '<div class="d-flex gap-2">' +
+                '<button class="btn btn-success btn-sm flex-fill btnLulus">✅ Lulus</button>' +
+                '<button class="btn btn-danger btn-sm flex-fill btnTolak">❌ Tolak</button>' +
+            '</div>';
+        div.querySelector(".btnLulus").addEventListener("click", function() {
+            tindakan(item.baris, "Disahkan", item.nama, item.telefon, item.tarikh, item.slot);
+        });
+        div.querySelector(".btnTolak").addEventListener("click", function() {
+            tindakan(item.baris, "Ditolak", item.nama, item.telefon, item.tarikh, item.slot);
+        });
+        container.appendChild(div);
+    });
+}
+
+// RENDER DISAHKAN
+function renderDisahkan(senarai) {
+    const container = document.getElementById("senaraiDisahkan");
+    container.innerHTML = "";
+    senarai.forEach(function(item) {
+        const tarikhPapar = formatTarikh(item.tarikh);
+        const slotPapar = item.slot.map(format12Jam).join(", ");
+        const jumlah = item.slot.length * HARGA_SLOT;
+        const div = document.createElement("div");
+        div.className = "kad-tempahan";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                '<div><span class="badge bg-success">Disahkan</span>' +
+                '<small class="text-muted ms-2">#' + item.baris + '</small></div>' +
+                '<small class="text-muted">' + item.timestamp + '</small>' +
+            '</div>' +
+            '<table class="table table-sm table-borderless mb-2 small">' +
+                '<tr><td style="width:90px">👤 Nama</td><td><strong>' + item.nama + '</strong></td></tr>' +
+                '<tr><td>📞 Telefon</td><td><strong>' + item.telefon + '</strong></td></tr>' +
+                '<tr><td>📅 Tarikh</td><td><strong>' + tarikhPapar + '</strong></td></tr>' +
+                '<tr><td>⏰ Slot</td><td><strong>' + slotPapar + '</strong></td></tr>' +
+                '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + jumlah.toFixed(2) + '</strong></td></tr>' +
+            '</table>' +
+            '<button class="btn btn-outline-danger btn-sm w-100 btnBatal">🚫 Batal Tempahan</button>';
+        div.querySelector(".btnBatal").addEventListener("click", function() {
+            tindakan(item.baris, "Dibatal", item.nama, item.telefon, item.tarikh, item.slot);
+        });
+        container.appendChild(div);
+    });
+}
+
+// RENDER BLOK
+function renderBlok(senarai) {
+    const container = document.getElementById("senaraiBlok");
+    container.innerHTML = "";
+    senarai.forEach(function(item) {
+        const tarikhPapar = formatTarikh(item.tarikh);
+        const slotPapar = item.slot === "SEMUA" ? "Semua Slot" : item.slot.split(",").map(format12Jam).join(", ");
+        const badge = item.jenis === "JPKK" ? "bg-primary" : "bg-danger";
+        const div = document.createElement("div");
+        div.className = "kad-tempahan";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                '<span class="badge ' + badge + '">' + (item.jenis === "JPKK" ? "🏛️ JPKK" : "🎊 Kenduri") + '</span>' +
+                '<small class="text-muted">' + item.timestamp + '</small>' +
+            '</div>' +
+            '<table class="table table-sm table-borderless mb-0 small">' +
+                '<tr><td style="width:90px">📌 Tujuan</td><td><strong>' + item.tujuan + '</strong></td></tr>' +
+                '<tr><td>📅 Tarikh</td><td><strong>' + tarikhPapar + '</strong></td></tr>' +
+                '<tr><td>⏰ Slot</td><td><strong>' + slotPapar + '</strong></td></tr>' +
+                (item.harga > 0 ? '<tr><td>💰 Harga</td><td><strong class="text-success">RM' + parseFloat(item.harga).toFixed(2) + '</strong></td></tr>' : '') +
+            '</table>';
+        container.appendChild(div);
+    });
+}
+
+// PILIH JENIS BLOK
+function pilihJenis(jenis) {
+    jenisBlok = jenis;
+    document.getElementById("btnJPKK").className = "btn flex-fill " + (jenis === "JPKK" ? "btn-primary" : "btn-outline-primary");
+    document.getElementById("btnKenduri").className = "btn flex-fill " + (jenis === "Kenduri" ? "btn-danger" : "btn-outline-danger");
+    document.getElementById("bahagianJPKK").style.display = jenis === "JPKK" ? "block" : "none";
+    document.getElementById("bahagianKenduri").style.display = jenis === "Kenduri" ? "block" : "none";
+
+    if (jenis === "JPKK") renderSlotJPKK();
+}
+
+// RENDER SLOT PILIHAN UNTUK JPKK
+function renderSlotJPKK() {
+    const container = document.getElementById("slotJPKK");
+    container.innerHTML = "";
+    slotJPKKDipilih = [];
+    for (let h = 8; h <= 23; h++) {
+        const jam = h.toString().padStart(2, '0') + ":00";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-outline-danger btn-slot-jpkk";
+        btn.innerText = format12Jam(jam);
+        btn.addEventListener("click", function() {
+            if (slotJPKKDipilih.includes(jam)) {
+                slotJPKKDipilih = slotJPKKDipilih.filter(s => s !== jam);
+                btn.className = "btn btn-outline-danger btn-slot-jpkk";
+            } else {
+                slotJPKKDipilih.push(jam);
+                btn.className = "btn btn-danger btn-slot-jpkk";
+            }
+        });
+        container.appendChild(btn);
+    }
+}
+
+// SIMPAN BLOK
+async function simpanBlok() {
+    if (!jenisBlok) { alert("Sila pilih jenis blok."); return; }
+    const tujuan = document.getElementById("inputTujuan").value.trim();
+    if (!tujuan) { alert("Sila masukkan nama/tujuan."); return; }
+
+    let payload = { blokKhas: true, jenis: jenisBlok, tujuan: tujuan };
+
+    if (jenisBlok === "JPKK") {
+        const tarikh = document.getElementById("tarikhJPKK").value;
+        if (!tarikh) { alert("Sila pilih tarikh."); return; }
+        if (slotJPKKDipilih.length === 0) { alert("Sila pilih sekurang-kurangnya satu slot."); return; }
+        payload.tarikh = [tarikh];
+        payload.slot = slotJPKKDipilih;
+    } else {
+        const tarikhP = document.getElementById("tarikhPersediaan").value;
+        const tarikhM = document.getElementById("tarikhMajlis").value;
+        if (!tarikhP || !tarikhM) { alert("Sila pilih tarikh persediaan dan tarikh majlis."); return; }
+        if (tarikhM <= tarikhP) { alert("Tarikh majlis mesti selepas tarikh persediaan."); return; }
+        payload.tarikh = [tarikhP, tarikhM];
+        payload.slot = [];
+    }
+
+    if (!confirm("Sahkan blok khas ini? Semua tempahan yang bercanggah akan dibatalkan.")) return;
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        paparModalBlok(result.terjejas || [], jenisBlok, tujuan);
+        muatBlok();
+    } catch (err) {
+        console.error(err);
+        alert("Gagal simpan blok. Sila cuba semula.");
+    }
+}
+
+// MODAL BLOK — tunjuk senarai penyewa terjejas
+function paparModalBlok(terjejas, jenis, tujuan) {
+    const tajuk = jenis === "JPKK" ? "🏛️ Blok JPKK Ditetapkan" : "🎊 Blok Kenduri Ditetapkan";
+    document.getElementById("modalTajuk").innerText = tajuk;
+    document.getElementById("modalArahan").innerText =
+        terjejas.length > 0
+            ? terjejas.length + " tempahan dibatalkan. Hantar WhatsApp kepada penyewa yang terjejas."
+            : "Tiada tempahan yang terjejas.";
+
+    let maklumat = '<p class="mb-1"><strong>Tujuan:</strong> ' + tujuan + '</p>';
+    if (terjejas.length > 0) {
+        maklumat += '<hr><p class="mb-1 fw-bold">Penyewa Terjejas:</p>';
+        terjejas.forEach(function(p, idx) {
+            maklumat += '<div class="mb-1">' + (idx+1) + '. <strong>' + p.nama + '</strong> (' + p.telefon + ') — ' + formatTarikh(p.tarikh) + '</div>';
+        });
+    }
+    document.getElementById("modalMaklumat").innerHTML = maklumat;
+
+    // Generate butang WhatsApp untuk setiap penyewa terjejas
+    const btnContainer = document.getElementById("senaraiBtnWA");
+    btnContainer.innerHTML = "";
+    terjejas.forEach(function(p) {
+        const noWA = p.telefon.startsWith("0") ? "6" + p.telefon : p.telefon;
+        const sebab = jenis === "Kenduri"
+            ? "dewan ditempah untuk majlis kenduri kahwin"
+            : "dewan akan digunakan untuk program JPKK";
+        const mesej =
+            "Assalamualaikum " + p.nama + ",\n" +
+            "Maaf memaklumkan, tempahan anda pada:\n\n" +
+            "\ud83d\udcc5 Tarikh: " + formatTarikh(p.tarikh) + "\n" +
+            "\u23f0 Slot: " + format12Jam(p.slot) + "\n\n" +
+            "Telah DIBATALKAN kerana " + sebab + ".\n\n" +
+            "Kami mohon maaf atas kesulitan ini.\n" +
+            "Terima kasih. \ud83d\ude4f";
+
+        const btn = document.createElement("button");
+        btn.className = "btn btn-success w-100 mb-2";
+        btn.innerHTML = "💬 WA ke " + p.nama + " (" + p.telefon + ")";
+        btn.addEventListener("click", function() {
+            window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
+        });
+        btnContainer.appendChild(btn);
+    });
+
+    document.getElementById("modalOverlay").style.display = "block";
+}
+
+// TINDAKAN LULUS / TOLAK / BATAL
+async function tindakan(baris, status, nama, telefon, tarikh, slot) {
+    const label = { "Disahkan": "meluluskan", "Ditolak": "menolak", "Dibatal": "membatalkan" }[status];
+    if (!confirm("Anda pasti mahu " + label + " tempahan ini?")) return;
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ adminTindakan: true, baris: baris, status: status })
+        });
+        dataModal = { status: status, nama: nama, telefon: telefon, tarikh: tarikh, slot: slot };
+        paparModalTindakan();
+        if (status === "Dibatal") muatDisahkan();
+        else muatData();
+    } catch (err) {
+        alert("Gagal kemaskini status.");
+    }
+}
+
+// MODAL TINDAKAN
+function paparModalTindakan() {
+    const tarikhPapar = formatTarikh(dataModal.tarikh);
+    const slotPapar = dataModal.slot.map(format12Jam).join(", ");
+    const jumlah = dataModal.slot.length * HARGA_SLOT;
+    const config = {
+        "Disahkan": { tajuk: "✅ Tempahan Diluluskan!", warna: "btn-success" },
+        "Ditolak":  { tajuk: "❌ Tempahan Ditolak",    warna: "btn-danger" },
+        "Dibatal":  { tajuk: "🚫 Tempahan Dibatalkan", warna: "btn-warning" }
+    }[dataModal.status];
+
+    document.getElementById("modalTajuk").innerText = config.tajuk;
+    document.getElementById("modalArahan").innerText = "Hantar WhatsApp untuk maklumkan penyewa.";
+    document.getElementById("modalMaklumat").innerHTML =
+        '<table class="table table-sm table-borderless mb-0">' +
+            '<tr><td style="width:80px">👤 Nama</td><td><strong>' + dataModal.nama + '</strong></td></tr>' +
+            '<tr><td>📞 Telefon</td><td><strong>' + dataModal.telefon + '</strong></td></tr>' +
+            '<tr><td>📅 Tarikh</td><td><strong>' + tarikhPapar + '</strong></td></tr>' +
+            '<tr><td>⏰ Slot</td><td><strong>' + slotPapar + '</strong></td></tr>' +
+            '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + jumlah.toFixed(2) + '</strong></td></tr>' +
+        '</table>';
+
+    const noWA = dataModal.telefon.toString().startsWith("0") ? "6" + dataModal.telefon : dataModal.telefon;
+    const mesej = {
+        "Disahkan":
+            "Assalamualaikum " + dataModal.nama + ",\n" +
+            "Tempahan anda telah DISAHKAN \u2705\n\n" +
+            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
+            "\u23f0 Slot: " + slotPapar + "\n" +
+            "\ud83d\udcb0 Jumlah: RM" + jumlah.toFixed(2) + "\n\n" +
+            "Sila hubungi kami untuk urusan bayaran.\nTerima kasih. \ud83d\ude4f",
+        "Ditolak":
+            "Assalamualaikum " + dataModal.nama + ",\n" +
+            "Maaf, tempahan anda TIDAK DAPAT DILULUSKAN \u274c\n\n" +
+            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
+            "\u23f0 Slot: " + slotPapar + "\n\n" +
+            "Sila hubungi kami untuk maklumat lanjut.\nTerima kasih. \ud83d\ude4f",
+        "Dibatal":
+            "Assalamualaikum " + dataModal.nama + ",\n" +
+            "Tempahan anda telah DIBATALKAN \ud83d\udeab\n\n" +
+            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
+            "\u23f0 Slot: " + slotPapar + "\n\n" +
+            "Sila hubungi kami untuk tempahan baru.\nTerima kasih. \ud83d\ude4f"
+    }[dataModal.status];
+
+    const btnContainer = document.getElementById("senaraiBtnWA");
+    btnContainer.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.className = "btn " + config.warna + " w-100 mb-2";
+    btn.innerHTML = "💬 Hantar WhatsApp ke Penyewa";
+    btn.addEventListener("click", function() {
+        window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
+    });
+    btnContainer.appendChild(btn);
+
+    document.getElementById("modalOverlay").style.display = "block";
+}
+
+// SEMAK SLOT VIEW
+document.getElementById("tarikhSlot").addEventListener("change", async function() {
+    const tarikh = this.value;
+    if (!tarikh) return;
+    document.getElementById("loadingSlot").style.display = "block";
+    document.getElementById("bahagianSlot").style.display = "none";
+    document.getElementById("slotViewContainer").innerHTML = "";
+    try {
+        const response = await fetch(SCRIPT_URL + "?tarikh=" + tarikh);
+        const data = await response.json();
+        document.getElementById("loadingSlot").style.display = "none";
+        document.getElementById("bahagianSlot").style.display = "block";
+        renderSlotView(data);
+    } catch (err) {
+        document.getElementById("loadingSlot").style.display = "none";
+        alert("Gagal semak slot.");
+    }
+});
+
+function renderSlotView(data) {
+    const container = document.getElementById("slotViewContainer");
+    container.innerHTML = "";
+    const ditempahTetap = data.tetap || [];
+    const ditempahAwam  = data.awam  || [];
+    const ditempahBlok  = data.blok  || [];
+
+    for (let h = 8; h <= 23; h++) {
+        const jam = h.toString().padStart(2, '0') + ":00";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-slot";
+        btn.disabled = true;
+
+        if (ditempahBlok.includes(jam)) {
+            btn.className += " btn-dark";
+            btn.innerText = format12Jam(jam) + " 🚫";
+            btn.title = "Blok Khas";
+        } else if (ditempahTetap.includes(jam)) {
+            btn.className += " btn-danger";
+            btn.innerText = format12Jam(jam) + " 🔒";
+            btn.title = "Penyewa Tetap";
+        } else if (ditempahAwam.includes(jam)) {
+            btn.className += " btn-secondary";
+            btn.innerText = format12Jam(jam) + " ✗";
+            btn.title = "Sudah Ditempah";
+        } else {
+            btn.className += " btn-success";
+            btn.innerText = format12Jam(jam);
+            btn.title = "Tersedia";
+        }
+        container.appendChild(btn);
+    }
+}
+
+function tutupModal() {
+    document.getElementById("modalOverlay").style.display = "none";
+}
+</script>
+</body>
+</html>
