@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>{
+  "name": "Dewan DSAT",
+  "short_name": "DSAT",
+  "description": "Sistem Tempahan Dewan Sivik Atas Tol",
+  "start_url": "/dsat/index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#0d6efd",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+    if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/dsat/sw.js')
+    .then(function() { console.log('SW berdaftar'); })
+    .catch(function(err) { console.log('SW gagal:', err); });
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jadual Tempahan Dewan DSAT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; }
+        .kad { max-width: 500px; margin: 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .btn-slot { min-width: 90px; font-size: 0.85rem; pointer-events: none; cursor: default; }
+        #loading { display: none; text-align: center; padding: 15px; }
+    </style>
+</head>
+<body class="p-3">
+
+<div class="kad">
+    <h4 class="text-center fw-bold mb-1">🏸 Jadual Tempahan</h4>
+    <p class="text-center text-muted mb-4">Dewan Sivik Atas Tol (DSAT)</p>
+
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Pilih Tarikh:</label>
+        <input type="date" id="tarikh" class="form-control">
+    </div>
+
+    <div id="loading">
+        <div class="spinner-border text-primary spinner-border-sm"></div>
+        <span class="ms-2 text-muted small">Menyemak jadual...</span>
+    </div>
+
+    <div id="bahagianSlot" style="display:none;">
+        <div class="mb-2 small text-muted">
+            <span class="badge bg-success">Kosong</span>
+            <span class="badge bg-secondary ms-1">Ditempah</span>
+            <span class="badge bg-danger ms-1">Penyewa Tetap</span>
+            <span class="badge bg-dark ms-1">Tidak Tersedia</span>
+        </div>
+        <div id="slotContainer" class="d-flex flex-wrap gap-2 mt-2"></div>
+        <p class="text-muted small mt-3 mb-0">
+           <p id="notaHubungi" class="text-muted small mt-3 mb-0" style="display:none;">
+            * Slot <span class="badge bg-success">Kosong</span> boleh ditempah. 
+            Hubungi pengendali dewan untuk membuat tempahan.
+        </p>
+    </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
+
+function format12Jam(masa24) {
+    const jam = parseInt(masa24.toString().split(":")[0]);
+    if (jam === 0) return "12:00 AM";
+    if (jam < 12) return jam + ":00 AM";
+    if (jam === 12) return "12:00 PM";
+    return (jam - 12) + ":00 PM";
+}
+
+document.getElementById("tarikh").addEventListener("change", async function() {
+    const tarikh = this.value;
+    if (!tarikh) return;
+
+    document.getElementById("loading").style.display = "block";
+    document.getElementById("bahagianSlot").style.display = "none";
+    document.getElementById("slotContainer").innerHTML = "";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?tarikh=" + tarikh);
+        const data = await response.json();
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("bahagianSlot").style.display = "block";
+        renderSlot(data);
+    } catch (err) {
+        document.getElementById("loading").style.display = "none";
+        alert("Gagal muatkan jadual. Sila cuba semula.");
+    }
+});
+
+function renderSlot(data) {
+    const container = document.getElementById("slotContainer");
+    container.innerHTML = "";
+
+    const ditempahTetap = data.tetap || [];
+    const ditempahAwam  = data.awam  || [];
+    const ditempahBlok  = data.blok  || [];
+
+    for (let h = 8; h <= 23; h++) {
+        const jam = h.toString().padStart(2, '0') + ":00";
+        const label = format12Jam(jam);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-slot";
+        btn.disabled = true;
+
+        if (ditempahBlok.includes(jam)) {
+            btn.className += " btn-dark";
+            btn.innerText = label + " 🚫";
+            btn.title = "Tidak Tersedia";
+        } else if (ditempahTetap.includes(jam)) {
+            btn.className += " btn-danger";
+            btn.innerText = label + " 🔒";
+            btn.title = "Penyewa Tetap";
+        } else if (ditempahAwam.includes(jam)) {
+            btn.className += " btn-secondary";
+            btn.innerText = label + " ✗";
+            btn.title = "Sudah Ditempah";
+        } else {
+            btn.className += " btn-success";
+            btn.innerText = label;
+            btn.title = "Kosong";
+        }
+
+        container.appendChild(btn);
+    }
+}
+</script>
+</body>
+</html>
