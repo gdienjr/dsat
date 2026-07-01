@@ -194,27 +194,43 @@ if ('serviceWorker' in navigator) {
         document.getElementById("jumlahHarga").innerText = "RM" + (pilihanSlot.length * HARGA_SLOT).toFixed(2);
     }
 
-    async function hantarTempahan() {
-        const nama = document.getElementById("nama").value.trim();
-        const telefon = document.getElementById("telefon").value.trim();
-        const tarikh = document.getElementById("tarikh").value;
+async function hantarTempahan() {
+    const nama = document.getElementById("nama").value.trim();
+    const telefon = document.getElementById("telefon").value.trim();
+    const tarikh = document.getElementById("tarikh").value;
 
-        if (!nama) { alert("Sila masukkan nama."); return; }
-        if (!telefon) { alert("Sila masukkan nombor telefon."); return; }
-        if (!tarikh) { alert("Sila pilih tarikh."); return; }
-        if (pilihanSlot.length === 0) { alert("Sila pilih sekurang-kurangnya satu slot masa."); return; }
-
-        const jumlah = pilihanSlot.length * HARGA_SLOT;
-        dataHantar = { nama, telefon, tarikh, slot: [...pilihanSlot], jumlah };
-
-        try {
-            await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ nama, telefon, tarikh, masa: pilihanSlot }) });
-            paparModal();
-        } catch (err) {
-            console.error("POST Error:", err);
-            alert("Gagal hantar tempahan. Sila cuba semula.");
-        }
+    if (!nama) { alert("Sila masukkan nama."); return; }
+    if (!telefon) { alert("Sila masukkan nombor telefon."); return; }
+    if (!telefon.startsWith("0")) { 
+        alert("Nombor telefon mesti bermula dengan 0.\nContoh: 0123456789"); 
+        return; 
     }
+    if (!tarikh) { alert("Sila pilih tarikh."); return; }
+    if (pilihanSlot.length === 0) { alert("Sila pilih sekurang-kurangnya satu slot masa."); return; }
+
+    const jumlah = pilihanSlot.length * HARGA_SLOT;
+    dataHantar = { nama, telefon, tarikh, slot: [...pilihanSlot], jumlah };
+
+    // Disable button dan tunjuk loading
+    const btnHantar = document.getElementById("btnHantar");
+    btnHantar.disabled = true;
+    btnHantar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menghantar...';
+
+    try {
+        await fetch(SCRIPT_URL, { 
+            method: "POST", 
+            body: JSON.stringify({ nama, telefon, tarikh, masa: pilihanSlot }) 
+        });
+        paparModal();
+    } catch (err) {
+        console.error("POST Error:", err);
+        alert("Gagal hantar tempahan. Sila cuba semula.");
+    } finally {
+        // Enable balik button lepas selesai
+        btnHantar.disabled = false;
+        btnHantar.innerHTML = '📨 Hantar Tempahan';
+    }
+}
 
     function paparModal() {
         const { nama, telefon, tarikh, slot, jumlah } = dataHantar;
