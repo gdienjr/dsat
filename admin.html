@@ -596,12 +596,16 @@ function paparModalTindakan() {
     const noWA = dataModal.telefon.toString().startsWith("0") ? "6" + dataModal.telefon : dataModal.telefon;
     const mesej = {
         "Disahkan":
-            "Assalamualaikum " + dataModal.nama + ",\n" +
-            "Tempahan anda telah DISAHKAN \u2705\n\n" +
-            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
-            "\u23f0 Slot: " + slotPapar + "\n" +
-            "\ud83d\udcb0 Jumlah: RM" + jumlah.toFixed(2) + "\n\n" +
-            "Sila hubungi kami untuk urusan bayaran.\nTerima kasih. \ud83d\ude4f",
+    "Assalamualaikum " + dataModal.nama + ",\n" +
+    "Tempahan anda telah DISAHKAN \u2705\n\n" +
+    "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
+    "\u23f0 Slot: " + slotPapar + "\n" +
+    "\ud83d\udcb0 Jumlah: RM" + jumlah.toFixed(2) + "\n\n" +
+    "\ud83d\udcb3 *Bayaran DuitNow QR (Teguh Resources & Services):*\n" +
+    "https://gdienjr.github.io/dsat/QR.jpeg\n\n" +
+    "Scan QR di atas untuk membuat bayaran.\n" +
+    "Jika ingin bayar cash, sila maklumkan admin.\n\n" +
+    "Terima kasih. \ud83d\ude4f",
         "Ditolak":
             "Assalamualaikum " + dataModal.nama + ",\n" +
             "Maaf, tempahan anda TIDAK DAPAT DILULUSKAN \u274c\n\n" +
