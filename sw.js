@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsat-v1";
+const CACHE_NAME = "dsat-v2";
 const urlsToCache = [
   "/dsat/index.html",
   "/dsat/jadual.html",
@@ -13,6 +13,7 @@ self.addEventListener("install", function(e) {
       return cache.addAll(urlsToCache);
     })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", function(e) {
@@ -24,9 +25,20 @@ self.addEventListener("activate", function(e) {
       );
     })
   );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", function(e) {
+  // Bypass POST requests
+  if (e.request.method !== "GET") return;
+
+  // Bypass Apps Script requests
+  if (e.request.url.includes("script.google.com")) return;
+
+  // Bypass external CDN
+  if (e.request.url.includes("cdn.jsdelivr.net")) return;
+  if (e.request.url.includes("cdnjs.cloudflare.com")) return;
+
   e.respondWith(
     caches.match(e.request).then(function(response) {
       return response || fetch(e.request);
