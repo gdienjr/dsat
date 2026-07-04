@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <link rel="manifest" href="manifest-admin.json">
+    <meta name="theme-color" content="#198754">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/dsat/sw-admin.js')
+            .then(function() { console.log('SW berdaftar'); })
+            .catch(function(err) { console.log('SW gagal:', err); });
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kewangan DSAT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { background-color: #f0f2f5; }
+        .kad { max-width: 650px; margin: 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        #loginBox { max-width: 350px; margin: 80px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .kad-bil { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; margin-bottom: 12px; }
+        .nav-tabs .nav-link { color: #495057; }
+        .nav-tabs .nav-link.active { font-weight: bold; }
+        .pemisah { border-top: 2px dashed #dee2e6; margin: 20px 0; }
+        .input-diskaun { width: 90px; }
+        #modalOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; }
+    </style>
+</head>
+<body class="p-3">
+
+<!-- Login -->
+<div id="loginBox">
+    <h5 class="text-center fw-bold mb-1">🔐 Kewangan DSAT</h5>
+    <p class="text-center text-muted small mb-4">Dewan Sivik Atas Tol</p>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Kata Laluan:</label>
+        <input type="password" id="inputPassword" class="form-control" placeholder="Masukkan kata laluan">
+    </div>
+    <div id="pesanSalah" class="text-danger small mb-2" style="display:none;">❌ Kata laluan salah.</div>
+    <button class="btn btn-success w-100" onclick="semakPassword()">Masuk</button>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display:none;">
+    <div class="kad">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 class="fw-bold mb-0">💰 Kewangan DSAT</h5>
+                <small class="text-muted">Dewan Sivik Atas Tol (DSAT)</small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" onclick="keluar()">Keluar</button>
+        </div>
+
+        <!-- Tab -->
+        <ul class="nav nav-tabs mb-3" id="tabMenu">
+            <li class="nav-item">
+                <a class="nav-link active" onclick="tukarTab('jana')" href="#">📄 Jana Bil</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('rekod')" href="#">📋 Rekod Bil</a>
+            </li>
+        </ul>
+
+        <!-- Tab Jana Bil -->
+        <div id="tabJana">
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <label class="form-label fw-semibold">Bulan:</label>
+                    <select id="pilihBulan" class="form-select">
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Mac</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Jun</option>
+                        <option value="7">Julai</option>
+                        <option value="8">Ogos</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Disember</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label class="form-label fw-semibold">Tahun:</label>
+                    <input type="number" id="pilihTahun" class="form-control" value="2026">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button class="btn btn-primary" onclick="muatPenyewa()">🔍 Semak</button>
+                </div>
+            </div>
+
+            <div id="loadingPenyewa" class="text-center py-3" style="display:none;">
+                <div class="spinner-border text-success spinner-border-sm"></div>
+                <span class="ms-2 text-muted small">Memuatkan data penyewa...</span>
+            </div>
+
+            <div id="bahagianPenyewa" style="display:none;">
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered small" id="tablePenyewa">
+                        <thead class="table-success">
+                            <tr>
+                                <th>Nama</th>
+                                <th>Jenis</th>
+                                <th>Jumlah Asal (RM)</th>
+                                <th>Diskaun (RM)</th>
+                                <th>Jumlah Akhir (RM)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyPenyewa"></tbody>
+                        <tfoot>
+                            <tr class="table-success fw-bold">
+                                <td colspan="2">JUMLAH KESELURUHAN</td>
+                                <td id="totalAsal">0.00</td>
+                                <td id="totalDiskaun">0.00</td>
+                                <td id="totalAkhir">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Status Gerai Berselektif -->
+                <div id="bahagianGerai" class="alert alert-warning small mb-3" style="display:none;">
+                    <strong>⚠️ Gerai Berselektif (Aziz)</strong><br>
+                    <label class="mt-1">Status bulan ini:</label>
+                    <div class="d-flex gap-2 mt-1">
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btnAda" onclick="pilihGerai('ada')">✅ Ada Aktiviti (RM50)</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnTiada" onclick="pilihGerai('tiada')">❌ Tiada Aktiviti (RM30)</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-success w-100" onclick="janaBilBulanan()">
+                    📄 Jana Bil Bulanan
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Rekod Bil -->
+        <div id="tabRekod" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex gap-2">
+                    <select id="filterBulanRekod" class="form-select form-select-sm" style="width:120px;">
+                        <option value="">Semua Bulan</option>
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Mac</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Jun</option>
+                        <option value="7">Julai</option>
+                        <option value="8">Ogos</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Disember</option>
+                    </select>
+                    <input type="number" id="filterTahunRekod" class="form-control form-control-sm" style="width:90px;" placeholder="Tahun" value="2026">
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="muatRekod()">🔄 Refresh</button>
+            </div>
+
+            <div id="loadingRekod" class="text-center py-3" style="display:none;">
+                <div class="spinner-border text-primary spinner-border-sm"></div>
+                <span class="ms-2 text-muted small">Memuatkan rekod...</span>
+            </div>
+            <div id="tiadaRekod" class="text-center py-4 text-muted" style="display:none;">
+                <p>📭 Tiada rekod bil.</p>
+            </div>
+            <div id="senaraiRekod"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal PDF & WhatsApp -->
+<div id="modalOverlay">
+    <div style="display:flex; justify-content:center; align-items:center; height:100%; padding:15px;">
+        <div style="background:white; border-radius:12px; padding:25px; max-width:450px; width:100%; text-align:center; max-height:90vh; overflow-y:auto;">
+            <h5 class="fw-bold mb-3" id="modalTajuk">✅ Bil Dijana!</h5>
+            <p class="text-muted small mb-3">Bil berjaya dijana. Muat turun PDF dan hantar kepada penyewa.</p>
+            <div id="senaraiAksi"></div>
+            <button class="btn btn-outline-secondary w-100 mt-2" onclick="tutupModal()">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
+const PASSWORD = "21070";
+const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
+const QR_URL = "https://gdienjr.github.io/dsat/QR.jpeg";
+const NAMA_SYARIKAT = "Teguh Resources & Services";
+const BANK_INFO = "DuitNow QR / Maybank\nNama: Teguh Resources & Services";
+
+const NAMA_BULAN = ["", "Januari", "Februari", "Mac", "April", "Mei", "Jun",
+    "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+
+let dataPenyewa = [];
+let statusGerai = "";
+let bilDijana = [];
+
+// LOGIN
+function semakPassword() {
+    const input = document.getElementById("inputPassword").value;
+    if (input === PASSWORD) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        // Set bulan semasa
+        const kini = new Date();
+        document.getElementById("pilihBulan").value = kini.getMonth() + 1;
+        document.getElementById("pilihTahun").value = kini.getFullYear();
+    } else {
+        document.getElementById("pesanSalah").style.display = "block";
+    }
+}
+
+document.getElementById("inputPassword").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") semakPassword();
+});
+
+function keluar() {
+    document.getElementById("loginBox").style.display = "block";
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("inputPassword").value = "";
+}
+
+// TUKAR TAB
+function tukarTab(tab) {
+    document.getElementById("tabJana").style.display = tab === "jana" ? "block" : "none";
+    document.getElementById("tabRekod").style.display = tab === "rekod" ? "block" : "none";
+    const links = document.querySelectorAll("#tabMenu .nav-link");
+    links[0].classList.toggle("active", tab === "jana");
+    links[1].classList.toggle("active", tab === "rekod");
+    if (tab === "rekod") muatRekod();
+}
+
+// MUAT DATA PENYEWA
+async function muatPenyewa() {
+    document.getElementById("loadingPenyewa").style.display = "block";
+    document.getElementById("bahagianPenyewa").style.display = "none";
+    statusGerai = "";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=penyewa");
+        const data = await response.json();
+        document.getElementById("loadingPenyewa").style.display = "none";
+        dataPenyewa = data.penyewa || [];
+        renderJadualPenyewa();
+    } catch (err) {
+        document.getElementById("loadingPenyewa").style.display = "none";
+        alert("Gagal muatkan data penyewa.");
+    }
+}
+
+// RENDER JADUAL PENYEWA
+function renderJadualPenyewa() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+    const tbody = document.getElementById("bodyPenyewa");
+    tbody.innerHTML = "";
+
+    // Kira hari dalam bulan untuk slot bulanan
+    const hariDalamBulan = new Date(tahun, bulan, 0).getDate();
+    const namaHari = ["Ahad","Isnin","Selasa","Rabu","Khamis","Jumaat","Sabtu"];
+
+    // Kira bilangan setiap hari dalam bulan
+    var bilanganHari = {};
+    namaHari.forEach(function(h) { bilanganHari[h] = 0; });
+    for (var d = 1; d <= hariDalamBulan; d++) {
+        var hari = namaHari[new Date(tahun, bulan - 1, d).getDay()];
+        bilanganHari[hari]++;
+    }
+
+    // Kumpul penyewa unik (nama + telefon + jenis)
+    var penyewaUnik = {};
+    var adaGerai = false;
+
+    dataPenyewa.forEach(function(p) {
+        var key = p.nama + "|" + p.jenis;
+        if (!penyewaUnik[key]) {
+            penyewaUnik[key] = {
+                nama: p.nama,
+                telefon: p.telefon,
+                jenis: p.jenis,
+                kadar: p.kadar,
+                totalSlot: 0,
+                jumlahAsal: 0
+            };
+        }
+
+        if (p.jenis === "Slot Bulanan") {
+            // Kira slot dalam bulan: bilangan hari × slot per hari
+            var bilHari = bilanganHari[p.hari] || 0;
+            var slotBulan = bilHari * p.slot;
+            penyewaUnik[key].totalSlot += slotBulan;
+            penyewaUnik[key].jumlahAsal += slotBulan * p.kadar;
+        } else if (p.jenis === "Fix Bulanan") {
+            penyewaUnik[key].jumlahAsal = p.kadar;
+        } else if (p.jenis === "Gerai Tetap") {
+            penyewaUnik[key].jumlahAsal = p.kadar;
+        } else if (p.jenis === "Gerai Berselektif") {
+            penyewaUnik[key].jumlahAsal = 0; // akan dikemas kini bila pilih status
+            adaGerai = true;
+        }
+    });
+
+    // Render baris
+    var totalAsal = 0;
+    var totalAkhir = 0;
+
+    Object.values(penyewaUnik).forEach(function(p, idx) {
+        var jumlahAsal = p.jumlahAsal;
+        var label = "";
+        if (p.jenis === "Slot Bulanan") {
+            label = p.jenis + " (" + p.totalSlot + " slot)";
+        } else if (p.jenis === "Gerai Berselektif") {
+            label = p.jenis + " (pilih status)";
+        } else {
+            label = p.jenis;
+        }
+
+        var tr = document.createElement("tr");
+        tr.id = "row-" + idx;
+        tr.innerHTML =
+            '<td>' + p.nama + '</td>' +
+            '<td><small>' + label + '</small></td>' +
+            '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
+            '<td><input type="number" class="form-control form-control-sm input-diskaun diskaun-input" ' +
+                'id="diskaun-' + idx + '" value="0" min="0" onchange="kiraSemula()"></td>' +
+            '<td class="text-end jumlah-akhir">' + jumlahAsal.toFixed(2) + '</td>';
+        tbody.appendChild(tr);
+
+        // Simpan data dalam row
+        tr.dataset.nama = p.nama;
+        tr.dataset.telefon = p.telefon;
+        tr.dataset.jenis = p.jenis;
+        tr.dataset.kadar = p.kadar;
+        tr.dataset.totalSlot = p.totalSlot || 0;
+
+        totalAsal += jumlahAsal;
+        totalAkhir += jumlahAsal;
+    });
+
+    document.getElementById("totalAsal").innerText = totalAsal.toFixed(2);
+    document.getElementById("totalDiskaun").innerText = "0.00";
+    document.getElementById("totalAkhir").innerText = totalAkhir.toFixed(2);
+
+    // Tunjuk bahagian gerai berselektif kalau ada
+    document.getElementById("bahagianGerai").style.display = adaGerai ? "block" : "none";
+    document.getElementById("bahagianPenyewa").style.display = "block";
+}
+
+// PILIH STATUS GERAI BERSELEKTIF
+function pilihGerai(status) {
+    statusGerai = status;
+    const kadar = status === "ada" ? 50 : 30;
+    document.getElementById("btnAda").className = "btn btn-sm " + (status === "ada" ? "btn-success" : "btn-outline-success");
+    document.getElementById("btnTiada").className = "btn btn-sm " + (status === "tiada" ? "btn-secondary" : "btn-outline-secondary");
+
+    // Update jumlah untuk Gerai Berselektif
+    const rows = document.querySelectorAll("#bodyPenyewa tr");
+    rows.forEach(function(tr) {
+        if (tr.dataset.jenis === "Gerai Berselektif") {
+            tr.querySelector(".jumlah-asal").innerText = kadar.toFixed(2);
+            tr.dataset.kadar = kadar;
+        }
+    });
+    kiraSemula();
+}
+
+// KIRA SEMULA JUMLAH
+function kiraSemula() {
+    const rows = document.querySelectorAll("#bodyPenyewa tr");
+    var totalAsal = 0;
+    var totalDiskaun = 0;
+    var totalAkhir = 0;
+
+    rows.forEach(function(tr) {
+        var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+        var diskaunInput = tr.querySelector(".diskaun-input");
+        var diskaun = parseFloat(diskaunInput.value) || 0;
+        var akhir = asal - diskaun;
+        if (akhir < 0) akhir = 0;
+        tr.querySelector(".jumlah-akhir").innerText = akhir.toFixed(2);
+
+        totalAsal += asal;
+        totalDiskaun += diskaun;
+        totalAkhir += akhir;
+    });
+
+    document.getElementById("totalAsal").innerText = totalAsal.toFixed(2);
+    document.getElementById("totalDiskaun").innerText = totalDiskaun.toFixed(2);
+    document.getElementById("totalAkhir").innerText = totalAkhir.toFixed(2);
+}
+
+// JANA BIL BULANAN
+async function janaBilBulanan() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+    const rows = document.querySelectorAll("#bodyPenyewa tr");
+
+    // Semak gerai berselektif
+    var adaGerai = false;
+    rows.forEach(function(tr) { if (tr.dataset.jenis === "Gerai Berselektif") adaGerai = true; });
+    if (adaGerai && !statusGerai) {
+        alert("Sila pilih status Gerai Berselektif (Ada/Tiada Aktiviti) dahulu.");
+        return;
+    }
+
+    var penyewaList = [];
+    rows.forEach(function(tr) {
+        var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+        var diskaun = parseFloat(tr.querySelector(".diskaun-input").value) || 0;
+        var akhir = asal - diskaun;
+        if (akhir < 0) akhir = 0;
+
+        penyewaList.push({
+            nama: tr.dataset.nama,
+            telefon: tr.dataset.telefon,
+            jenis: tr.dataset.jenis,
+            jumlahAsal: asal,
+            diskaun: diskaun,
+            jumlahAkhir: akhir
+        });
+    });
+
+    if (!confirm("Jana bil untuk " + penyewaList.length + " penyewa bagi bulan " + NAMA_BULAN[bulan] + " " + tahun + "?")) return;
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ janaBil: true, bulan: bulan, tahun: tahun, penyewa: penyewaList })
+        });
+        const result = await response.json();
+        bilDijana = result.bil || [];
+        paparModalBil(bilDijana, bulan, tahun);
+    } catch (err) {
+        console.error(err);
+        alert("Gagal jana bil. Sila cuba semula.");
+    }
+}
+
+// PAPAR MODAL BIL
+function paparModalBil(senaraiBil, bulan, tahun) {
+    document.getElementById("modalTajuk").innerText = "✅ " + senaraiBil.length + " Bil Dijana!";
+    const container = document.getElementById("senaraiAksi");
+    container.innerHTML = "";
+
+    senaraiBil.forEach(function(bil) {
+        const div = document.createElement("div");
+        div.className = "border rounded p-2 mb-2 text-start small";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-center mb-1">' +
+                '<strong>' + bil.nama + '</strong>' +
+                '<span class="badge bg-secondary">Bil #' + bil.noBil + '</span>' +
+            '</div>' +
+            '<div class="text-muted mb-2">' + bil.jenis + ' | RM' + bil.jumlahAkhir.toFixed(2) + '</div>' +
+            '<div class="d-flex gap-1">' +
+                '<button class="btn btn-sm btn-outline-danger flex-fill" onclick="muatTurunPDF(' + JSON.stringify(bil) + ', ' + bulan + ', ' + tahun + ')">📄 PDF</button>' +
+                '<button class="btn btn-sm btn-success flex-fill" onclick="hantarWABil(' + JSON.stringify(bil) + ', ' + bulan + ', ' + tahun + ')">💬 WhatsApp</button>' +
+            '</div>';
+        container.appendChild(div);
+    });
+
+    document.getElementById("modalOverlay").style.display = "block";
+}
+
+// JANA PDF BIL
+async function muatTurunPDF(bil, bulan, tahun) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    const namaBulan = NAMA_BULAN[bulan];
+    const tarikhJana = new Date().toLocaleDateString("ms-MY", { day: "2-digit", month: "long", year: "numeric" });
+
+    // Cuba load logo
+    var logoLoaded = false;
+    try {
+        const logoImg = await loadImage(LOGO_URL);
+        doc.addImage(logoImg, "PNG", 15, 10, 50, 15);
+        logoLoaded = true;
+    } catch(e) {}
+
+    // Header syarikat
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(NAMA_SYARIKAT, logoLoaded ? 70 : 15, 15);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Dewan Sivik Atas Tol (DSAT)", logoLoaded ? 70 : 15, 20);
+    doc.text("Tel: 019-9812960", logoLoaded ? 70 : 15, 25);
+
+    // Garisan
+    doc.setLineWidth(0.5);
+    doc.line(15, 30, 195, 30);
+
+    // Tajuk BIL
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("BIL / INVOIS", 105, 40, { align: "center" });
+
+    // No bil & tarikh
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("No. Bil:", 15, 50);
+    doc.setFont("helvetica", "bold");
+    doc.text(bil.noBil.toString(), 50, 50);
+    doc.setFont("helvetica", "normal");
+    doc.text("Tarikh:", 130, 50);
+    doc.setFont("helvetica", "bold");
+    doc.text(tarikhJana, 150, 50);
+
+    // Maklumat penyewa
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Kepada:", 15, 62);
+    doc.setFont("helvetica", "bold");
+    doc.text(bil.nama, 15, 68);
+    doc.setFont("helvetica", "normal");
+    doc.text("Tel: " + bil.telefon, 15, 73);
+
+    // Tempoh bil
+    doc.text("Tempoh:", 130, 62);
+    doc.setFont("helvetica", "bold");
+    doc.text(namaBulan + " " + tahun, 130, 68);
+
+    // Garisan
+    doc.line(15, 78, 195, 78);
+
+    // Header jadual
+    doc.setFillColor(34, 139, 34);
+    doc.rect(15, 80, 180, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Keterangan", 18, 86);
+    doc.text("Jumlah (RM)", 160, 86);
+    doc.setTextColor(0, 0, 0);
+
+    // Baris keterangan
+    var y = 96;
+    doc.setFont("helvetica", "normal");
+
+    // Keterangan mengikut jenis
+    var keterangan = "";
+    if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
+        keterangan = "Bayaran Tapak Jualan/Letrik/Air\nDewan Sivik Atas Tol";
+    } else {
+        keterangan = "Bayaran Sewa " + bil.jenis + "\nBagi Bulan " + namaBulan + " " + tahun;
+    }
+
+    var lines = keterangan.split("\n");
+    lines.forEach(function(line) {
+        doc.text(line, 18, y);
+        y += 6;
+    });
+
+    // Jumlah asal
+    if (bil.diskaun > 0) {
+        doc.text("RM " + bil.jumlahAsal.toFixed(2), 160, 96);
+        y = Math.max(y, 108);
+        doc.text("Diskaun:", 18, y);
+        doc.text("- RM " + bil.diskaun.toFixed(2), 160, y);
+        y += 6;
+    }
+
+    // Garisan jumlah
+    doc.line(15, y, 195, y);
+    y += 6;
+
+    // Jumlah akhir
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("JUMLAH PERLU DIBAYAR:", 18, y);
+    doc.text("RM " + bil.jumlahAkhir.toFixed(2), 155, y);
+
+    y += 10;
+    doc.line(15, y, 195, y);
+
+    // Maklumat bayaran
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("MAKLUMAT BAYARAN:", 15, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.text("DuitNow QR / Maybank", 15, y);
+    y += 5;
+    doc.text("Nama Akaun: " + NAMA_SYARIKAT, 15, y);
+
+    // Cuba load QR
+    try {
+        const qrImg = await loadImage(QR_URL);
+        doc.addImage(qrImg, "JPEG", 140, y - 10, 40, 40);
+    } catch(e) {}
+
+    y += 30;
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Sila hubungi 019-9812960 untuk sebarang pertanyaan.", 105, y, { align: "center" });
+    doc.text("Terima kasih atas kerjasama anda.", 105, y + 5, { align: "center" });
+
+    // Simpan PDF
+    doc.save("Bil_" + bil.noBil + "_" + bil.nama + "_" + namaBulan + tahun + ".pdf");
+}
+
+// Load gambar sebagai base64
+function loadImage(url) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = function() {
+            var canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+// HANTAR WHATSAPP BIL
+function hantarWABil(bil, bulan, tahun) {
+    const namaBulan = NAMA_BULAN[bulan];
+    const noWA = bil.telefon.startsWith("0") ? "6" + bil.telefon : bil.telefon;
+
+    var keterangan = "";
+    if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
+        keterangan = "Bayaran Tapak Jualan/Letrik/Air Dewan Sivik Atas Tol";
+    } else {
+        keterangan = "Bayaran Sewa " + bil.jenis + " bagi bulan " + namaBulan + " " + tahun;
+    }
+
+    var diskaunInfo = bil.diskaun > 0
+        ? "\n💸 Diskaun: RM" + bil.diskaun.toFixed(2)
+        : "";
+
+    const mesej =
+        "Assalamualaikum " + bil.nama + ",\n\n" +
+        "Berikut adalah bil sewa untuk bulan *" + namaBulan + " " + tahun + "*:\n\n" +
+        "📋 *No. Bil: " + bil.noBil + "*\n" +
+        "📌 " + keterangan + "\n" +
+        "💰 Jumlah Asal: RM" + bil.jumlahAsal.toFixed(2) +
+        diskaunInfo + "\n" +
+        "✅ *Jumlah Perlu Dibayar: RM" + bil.jumlahAkhir.toFixed(2) + "*\n\n" +
+        "💳 *Bayaran DuitNow QR (Teguh Resources & Services):*\n" +
+        QR_URL + "\n\n" +
+        "Scan QR di atas untuk membuat bayaran.\n" +
+        "Jika bayar cash, sila maklumkan pengendali dewan.\n\n" +
+        "Terima kasih. 🙏";
+
+    window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
+}
+
+// MUAT REKOD BIL
+async function muatRekod() {
+    document.getElementById("loadingRekod").style.display = "block";
+    document.getElementById("senaraiRekod").innerHTML = "";
+    document.getElementById("tiadaRekod").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=bil");
+        const data = await response.json();
+        document.getElementById("loadingRekod").style.display = "none";
+
+        var senarai = data.bil || [];
+
+        // Filter ikut bulan/tahun
+        const filterBulan = document.getElementById("filterBulanRekod").value;
+        const filterTahun = document.getElementById("filterTahunRekod").value;
+        if (filterBulan) senarai = senarai.filter(function(b) { return b.bulan == filterBulan; });
+        if (filterTahun) senarai = senarai.filter(function(b) { return b.tahun == filterTahun; });
+
+        if (senarai.length === 0) { document.getElementById("tiadaRekod").style.display = "block"; return; }
+        renderRekod(senarai);
+    } catch (err) {
+        document.getElementById("loadingRekod").style.display = "none";
+        alert("Gagal muatkan rekod.");
+    }
+}
+
+// RENDER REKOD BIL
+function renderRekod(senarai) {
+    const container = document.getElementById("senaraiRekod");
+    container.innerHTML = "";
+
+    senarai.forEach(function(bil) {
+        const statusBadge = bil.status === "Sudah Bayar"
+            ? '<span class="badge bg-success">Sudah Bayar</span>'
+            : '<span class="badge bg-danger">Belum Bayar</span>';
+
+        const div = document.createElement("div");
+        div.className = "kad-bil";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                '<div>' + statusBadge +
+                '<small class="text-muted ms-2">Bil #' + bil.noBil + '</small></div>' +
+                '<small class="text-muted">' + bil.timestamp + '</small>' +
+            '</div>' +
+            '<table class="table table-sm table-borderless mb-2 small">' +
+                '<tr><td style="width:100px">👤 Nama</td><td><strong>' + bil.nama + '</strong></td></tr>' +
+                '<tr><td>📌 Jenis</td><td>' + bil.jenis + '</td></tr>' +
+                '<tr><td>📅 Tempoh</td><td>' + NAMA_BULAN[bil.bulan] + ' ' + bil.tahun + '</td></tr>' +
+                '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + bil.jumlahAkhir.toFixed(2) + '</strong>' +
+                    (bil.diskaun > 0 ? ' <small class="text-muted">(Diskaun: RM' + bil.diskaun.toFixed(2) + ')</small>' : '') +
+                '</td></tr>' +
+            '</table>' +
+            '<div class="d-flex gap-2">' +
+                '<button class="btn btn-sm btn-outline-danger flex-fill btnPDF">📄 PDF</button>' +
+                '<button class="btn btn-sm btn-success flex-fill btnWA">💬 WA</button>' +
+                (bil.status === "Belum Bayar"
+                    ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">✅ Tandakan Bayar</button>'
+                    : '<button class="btn btn-sm btn-outline-secondary flex-fill btnBelumBayar">↩️ Belum Bayar</button>') +
+            '</div>';
+
+        div.querySelector(".btnPDF").addEventListener("click", function() {
+            muatTurunPDF(bil, bil.bulan, bil.tahun);
+        });
+        div.querySelector(".btnWA").addEventListener("click", function() {
+            hantarWABil(bil, bil.bulan, bil.tahun);
+        });
+
+        if (bil.status === "Belum Bayar") {
+            div.querySelector(".btnBayar").addEventListener("click", function() {
+                kemaskiniStatusBil(bil.baris, "Sudah Bayar");
+            });
+        } else {
+            div.querySelector(".btnBelumBayar").addEventListener("click", function() {
+                kemaskiniStatusBil(bil.baris, "Belum Bayar");
+            });
+        }
+
+        container.appendChild(div);
+    });
+}
+
+// KEMASKINI STATUS BIL
+async function kemaskiniStatusBil(baris, status) {
+    const label = status === "Sudah Bayar" ? "menandakan sebagai sudah bayar" : "menukar semula ke belum bayar";
+    if (!confirm("Anda pasti mahu " + label + "?")) return;
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ kemaskiniStatusBil: true, baris: baris, status: status })
+        });
+        muatRekod();
+    } catch (err) {
+        alert("Gagal kemaskini status.");
+    }
+}
+
+function tutupModal() {
+    document.getElementById("modalOverlay").style.display = "none";
+}
+</script>
+</body>
+</html>
