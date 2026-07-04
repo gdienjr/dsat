@@ -430,17 +430,30 @@ async function janaBilBulanan() {
 
     if (!confirm("Jana bil untuk " + penyewaList.length + " penyewa bagi bulan " + NAMA_BULAN[bulan] + " " + tahun + "?")) return;
 
+    const btnJana = document.querySelector("#bahagianPenyewa .btn-success");
+    btnJana.disabled = true;
+    btnJana.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menjana...';
+
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ janaBil: true, bulan: bulan, tahun: tahun, penyewa: penyewaList })
+        const result = await new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", SCRIPT_URL, true);
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.onload = function() {
+                try { resolve(JSON.parse(xhr.responseText)); }
+                catch(e) { reject(new Error("Parse error")); }
+            };
+            xhr.onerror = function() { reject(new Error("Network error")); };
+            xhr.send(JSON.stringify({ janaBil: true, bulan: bulan, tahun: tahun, penyewa: penyewaList }));
         });
-        const result = await response.json();
         bilDijana = result.bil || [];
         paparModalBil(bilDijana, bulan, tahun);
     } catch (err) {
         console.error(err);
         alert("Gagal jana bil. Sila cuba semula.");
+    } finally {
+        btnJana.disabled = false;
+        btnJana.innerHTML = '📄 Jana Bil Bulanan';
     }
 }
 
@@ -749,9 +762,13 @@ async function kemaskiniStatusBil(baris, status) {
     if (!confirm("Anda pasti mahu " + label + "?")) return;
 
     try {
-        await fetch(SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ kemaskiniStatusBil: true, baris: baris, status: status })
+        await new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", SCRIPT_URL, true);
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.onload = function() { resolve(); };
+            xhr.onerror = function() { reject(new Error("Network error")); };
+            xhr.send(JSON.stringify({ kemaskiniStatusBil: true, baris: baris, status: status }));
         });
         muatRekod();
     } catch (err) {
