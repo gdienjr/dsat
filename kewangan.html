@@ -263,7 +263,6 @@ function renderJadualPenyewa() {
     const tbody = document.getElementById("bodyPenyewa");
     tbody.innerHTML = "";
 
-    // Kira hari dalam bulan untuk slot bulanan
     const hariDalamBulan = new Date(tahun, bulan, 0).getDate();
     const namaHari = ["Ahad","Isnin","Selasa","Rabu","Khamis","Jumaat","Sabtu"];
 
@@ -275,40 +274,41 @@ function renderJadualPenyewa() {
         bilanganHari[hari]++;
     }
 
-    // Kumpul penyewa unik (nama + telefon + jenis)
+    // Kumpul penyewa unik (nama + telefon)
     var penyewaUnik = {};
     var adaGerai = false;
 
     dataPenyewa.forEach(function(p) {
-        var key = p.nama + "|" + p.jenis;
+        // Guna nama+telefon sebagai key (bukan nama+jenis)
+        var key = p.nama + "|" + p.telefon;
         if (!penyewaUnik[key]) {
             penyewaUnik[key] = {
                 nama: p.nama,
                 telefon: p.telefon,
-                jenis: p.jenis,
+                jenis: p.jenis.trim(),
                 kadar: p.kadar,
                 totalSlot: 0,
                 jumlahAsal: 0
             };
         }
 
-        if (p.jenis === "Slot Bulanan") {
-            // Kira slot dalam bulan: bilangan hari × slot per hari
-            var bilHari = bilanganHari[p.hari] || 0;
+        var jenis = p.jenis.toString().trim();
+
+        if (jenis === "Slot Bulanan") {
+            var bilHari = bilanganHari[p.hari.trim()] || 0;
             var slotBulan = bilHari * p.slot;
             penyewaUnik[key].totalSlot += slotBulan;
             penyewaUnik[key].jumlahAsal += slotBulan * p.kadar;
-        } else if (p.jenis === "Fix Bulanan") {
+        } else if (jenis === "Fix Bulanan") {
             penyewaUnik[key].jumlahAsal = p.kadar;
-        } else if (p.jenis === "Gerai Tetap") {
+        } else if (jenis === "Gerai Tetap") {
             penyewaUnik[key].jumlahAsal = p.kadar;
-        } else if (p.jenis === "Gerai Berselektif") {
-            penyewaUnik[key].jumlahAsal = 0; // akan dikemas kini bila pilih status
+        } else if (jenis === "Gerai Berselektif") {
+            penyewaUnik[key].jumlahAsal = 0;
             adaGerai = true;
         }
     });
 
-    // Render baris
     var totalAsal = 0;
     var totalAkhir = 0;
 
@@ -332,14 +332,14 @@ function renderJadualPenyewa() {
             '<td><input type="number" class="form-control form-control-sm input-diskaun diskaun-input" ' +
                 'id="diskaun-' + idx + '" value="0" min="0" onchange="kiraSemula()"></td>' +
             '<td class="text-end jumlah-akhir">' + jumlahAsal.toFixed(2) + '</td>';
-        tbody.appendChild(tr);
 
-        // Simpan data dalam row
         tr.dataset.nama = p.nama;
         tr.dataset.telefon = p.telefon;
         tr.dataset.jenis = p.jenis;
         tr.dataset.kadar = p.kadar;
         tr.dataset.totalSlot = p.totalSlot || 0;
+
+        tbody.appendChild(tr);
 
         totalAsal += jumlahAsal;
         totalAkhir += jumlahAsal;
@@ -349,11 +349,9 @@ function renderJadualPenyewa() {
     document.getElementById("totalDiskaun").innerText = "0.00";
     document.getElementById("totalAkhir").innerText = totalAkhir.toFixed(2);
 
-    // Tunjuk bahagian gerai berselektif kalau ada
     document.getElementById("bahagianGerai").style.display = adaGerai ? "block" : "none";
     document.getElementById("bahagianPenyewa").style.display = "block";
 }
-
 // PILIH STATUS GERAI BERSELEKTIF
 function pilihGerai(status) {
     statusGerai = status;
