@@ -189,7 +189,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNbeIO-sckcO74RoODHKNfvmsePoAfdaQeexVvs3tto7BlmO8mRUurZdoV4-6lXgWy/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
 const PASSWORD = "21070";
 const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
 const QR_URL = "https://gdienjr.github.io/dsat/QR.jpeg";
@@ -435,22 +435,16 @@ async function janaBilBulanan() {
     btnJana.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menjana...';
 
     try {
-        const result = await new Promise(function(resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", SCRIPT_URL, true);
-            xhr.setRequestHeader("Content-Type", "text/plain");
-            xhr.onload = function() {
-                try { resolve(JSON.parse(xhr.responseText)); }
-                catch(e) { reject(new Error("Parse error")); }
-            };
-            xhr.onerror = function() { reject(new Error("Network error")); };
-            xhr.send(JSON.stringify({ janaBil: true, bulan: bulan, tahun: tahun, penyewa: penyewaList }));
-        });
+        const payload = encodeURIComponent(JSON.stringify({
+            bulan: bulan, tahun: tahun, penyewa: penyewaList
+        }));
+        const response = await fetch(SCRIPT_URL + "?action=janaBil&data=" + payload);
+        const result = await response.json();
         bilDijana = result.bil || [];
         paparModalBil(bilDijana, bulan, tahun);
     } catch (err) {
         console.error(err);
-        alert("Gagal jana bil. Sila cuba semula.");
+        alert("Gagal jana bil: " + err.message);
     } finally {
         btnJana.disabled = false;
         btnJana.innerHTML = '📄 Jana Bil Bulanan';
@@ -762,14 +756,7 @@ async function kemaskiniStatusBil(baris, status) {
     if (!confirm("Anda pasti mahu " + label + "?")) return;
 
     try {
-        await new Promise(function(resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", SCRIPT_URL, true);
-            xhr.setRequestHeader("Content-Type", "text/plain");
-            xhr.onload = function() { resolve(); };
-            xhr.onerror = function() { reject(new Error("Network error")); };
-            xhr.send(JSON.stringify({ kemaskiniStatusBil: true, baris: baris, status: status }));
-        });
+        await fetch(SCRIPT_URL + "?action=kemaskiniStatusBil&baris=" + baris + "&status=" + encodeURIComponent(status));
         muatRekod();
     } catch (err) {
         alert("Gagal kemaskini status.");
