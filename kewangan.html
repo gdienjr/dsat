@@ -410,20 +410,6 @@ async function janaBilBulanan() {
     }
 
     var penyewaList = [];
-    async function janaBilBulanan() {
-    const bulan = parseInt(document.getElementById("pilihBulan").value);
-    const tahun = parseInt(document.getElementById("pilihTahun").value);
-    const rows = document.querySelectorAll("#bodyPenyewa tr");
-
-    var penyewaList = [];
-    
-    // TAMBAH BARIS INI
-    console.log("Bilangan rows:", rows.length);
-    rows.forEach(function(tr, i) {
-        console.log("Row " + i + ":", tr.dataset.nama, "|", tr.dataset.jenis, "|", tr.querySelector(".jumlah-asal").innerText);
-    });
-    
-    // ... kod seterusnya
     rows.forEach(function(tr) {
         var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
         var diskaun = parseFloat(tr.querySelector(".diskaun-input").value) || 0;
