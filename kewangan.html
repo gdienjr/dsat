@@ -410,6 +410,20 @@ async function janaBilBulanan() {
     }
 
     var penyewaList = [];
+    async function janaBilBulanan() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+    const rows = document.querySelectorAll("#bodyPenyewa tr");
+
+    var penyewaList = [];
+    
+    // TAMBAH BARIS INI
+    console.log("Bilangan rows:", rows.length);
+    rows.forEach(function(tr, i) {
+        console.log("Row " + i + ":", tr.dataset.nama, "|", tr.dataset.jenis, "|", tr.querySelector(".jumlah-asal").innerText);
+    });
+    
+    // ... kod seterusnya
     rows.forEach(function(tr) {
         var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
         var diskaun = parseFloat(tr.querySelector(".diskaun-input").value) || 0;
@@ -455,9 +469,7 @@ function paparModalBil(senaraiBil, bulan, tahun) {
     const container = document.getElementById("senaraiAksi");
     container.innerHTML = "";
 
-    senaraiBil.forEach(function(bil, idx) {
-        bilDijana[idx] = bil;
-
+    senaraiBil.forEach(function(bil) {
         const div = document.createElement("div");
         div.className = "border rounded p-2 mb-2 text-start small";
         div.innerHTML =
@@ -467,17 +479,9 @@ function paparModalBil(senaraiBil, bulan, tahun) {
             '</div>' +
             '<div class="text-muted mb-2">' + bil.jenis + ' | RM' + bil.jumlahAkhir.toFixed(2) + '</div>' +
             '<div class="d-flex gap-1">' +
-                '<button class="btn btn-sm btn-outline-danger flex-fill btnPDF" data-idx="' + idx + '">📄 PDF</button>' +
-                '<button class="btn btn-sm btn-success flex-fill btnWA" data-idx="' + idx + '">💬 WhatsApp</button>' +
+                '<button class="btn btn-sm btn-outline-danger flex-fill" onclick="muatTurunPDF(' + JSON.stringify(bil) + ', ' + bulan + ', ' + tahun + ')">📄 PDF</button>' +
+                '<button class="btn btn-sm btn-success flex-fill" onclick="hantarWABil(' + JSON.stringify(bil) + ', ' + bulan + ', ' + tahun + ')">💬 WhatsApp</button>' +
             '</div>';
-
-        div.querySelector(".btnPDF").addEventListener("click", function() {
-            muatTurunPDF(bilDijana[parseInt(this.dataset.idx)], bulan, tahun);
-        });
-        div.querySelector(".btnWA").addEventListener("click", function() {
-            hantarWABil(bilDijana[parseInt(this.dataset.idx)], bulan, tahun);
-        });
-
         container.appendChild(div);
     });
 
