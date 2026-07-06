@@ -643,7 +643,15 @@ function loadImage(url) {
 // HANTAR WHATSAPP BIL
 function hantarWABil(bil, bulan, tahun) {
     const namaBulan = NAMA_BULAN[bulan];
-    const noWA = bil.telefon.startsWith("0") ? "6" + bil.telefon : bil.telefon;
+    var tel = bil.telefon.toString().replace(/\s/g, "").replace(/^'/, "");
+    var noWA = "";
+    if (tel.startsWith("60")) {
+    noWA = tel;
+    } else if (tel.startsWith("0")) {
+    noWA = "6" + tel;
+    } else {
+    noWA = "60" + tel;
+    }
 
     var keterangan = "";
     if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
