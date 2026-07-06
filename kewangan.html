@@ -189,7 +189,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbm8diQ8myu7YYU8DTdzHwSH8a9em3iX00nHn327l-NaNX_mzgzKd0vlVZLEv-9lY5/exec";
 const PASSWORD = "21070";
 const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
 const QR_URL = "https://gdienjr.github.io/dsat/QR.jpeg";
@@ -425,8 +425,7 @@ async function janaBilBulanan() {
             jumlahAkhir: akhir
         });
     });
-    // LETAK DI SINI — selepas forEach selesai
-    alert("Penyewa list: " + penyewaList.length + " | Contoh: " + (penyewaList[0] ? penyewaList[0].nama + " RM" + penyewaList[0].jumlahAsal : "kosong"));
+
     if (!confirm("Jana bil untuk " + penyewaList.length + " penyewa bagi bulan " + NAMA_BULAN[bulan] + " " + tahun + "?")) return;
 
     const btnJana = document.querySelector("#bahagianPenyewa .btn-success");
