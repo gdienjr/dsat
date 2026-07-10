@@ -269,11 +269,8 @@ function hantarWhatsApp() {
         "📅 Tarikh: " + tarikhPapar + "\n" +
         "⏰ Slot: " + slot.map(format12Jam).join(", ") + "\n" +
         "💰 Jumlah: RM" + jumlah.toFixed(2) + "\n\n" +
-        "💳 *Bayaran DuitNow QR (Teguh Resources & Services):*\n" +
-        "https://gdienjr.github.io/dsat/QR.jpeg\n\n" +
-        "Scan QR di atas untuk membuat bayaran.\n" +
-        "Jika ingin bayar cash, sila maklumkan admin.\n\n" +
-        "Sila sahkan tempahan saya. Terima kasih. 🙏";
+        "Sila sahkan tempahan saya. Maklumat bayaran akan dihantar selepas tempahan disahkan.\n\n" +
+        "Terima kasih. 🙏";
 
     window.open("https://wa.me/" + ADMIN_WA + "?text=" + encodeURIComponent(mesej), "_blank");
 }
