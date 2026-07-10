@@ -22,7 +22,9 @@ if ('serviceWorker' in navigator) {
         .nav-tabs .nav-link.active { font-weight: bold; }
         .pemisah { border-top: 2px dashed #dee2e6; margin: 20px 0; }
         .input-diskaun { width: 90px; }
+        .input-tambahan { width: 70px; }
         #modalOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; }
+        .kad-dashboard { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px; text-align: center; background: #f8f9fa; }
     </style>
 </head>
 <body class="p-3">
@@ -59,6 +61,9 @@ if ('serviceWorker' in navigator) {
             </li>
             <li class="nav-item">
                 <a class="nav-link" onclick="tukarTab('rekod')" href="#">📋 Rekod Bil</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('dashboard')" href="#">📊 Dashboard</a>
             </li>
         </ul>
 
@@ -97,6 +102,7 @@ if ('serviceWorker' in navigator) {
             </div>
 
             <div id="bahagianPenyewa" style="display:none;">
+                <p class="text-muted small mb-2">💡 Isi <strong>Tambahan Slot</strong> jika penyewa guna slot tambahan (9PM–1AM, RM10/slot) bulan ini.</p>
                 <div class="table-responsive mb-3">
                     <table class="table table-sm table-bordered small" id="tablePenyewa">
                         <thead class="table-success">
@@ -104,6 +110,7 @@ if ('serviceWorker' in navigator) {
                                 <th>Nama</th>
                                 <th>Jenis</th>
                                 <th>Jumlah Asal (RM)</th>
+                                <th>Tambahan Slot</th>
                                 <th>Diskaun (RM)</th>
                                 <th>Jumlah Akhir (RM)</th>
                             </tr>
@@ -113,6 +120,7 @@ if ('serviceWorker' in navigator) {
                             <tr class="table-success fw-bold">
                                 <td colspan="2">JUMLAH KESELURUHAN</td>
                                 <td id="totalAsal">0.00</td>
+                                <td id="totalTambahan">0.00</td>
                                 <td id="totalDiskaun">0.00</td>
                                 <td id="totalAkhir">0.00</td>
                             </tr>
@@ -170,6 +178,75 @@ if ('serviceWorker' in navigator) {
             <div id="senaraiRekod"></div>
         </div>
 
+        <!-- Tab Dashboard -->
+        <div id="tabDashboard" style="display:none;">
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <label class="form-label fw-semibold">Tahun:</label>
+                    <input type="number" id="dashboardTahun" class="form-control" value="2026">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button class="btn btn-primary" onclick="muatDashboard()">🔍 Semak</button>
+                </div>
+            </div>
+
+            <div id="loadingDashboard" class="text-center py-3" style="display:none;">
+                <div class="spinner-border text-info spinner-border-sm"></div>
+                <span class="ms-2 text-muted small">Memuatkan dashboard...</span>
+            </div>
+
+            <div id="bahagianDashboard" style="display:none;">
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Patut Kutip</div>
+                            <div class="fw-bold fs-5" id="dbPatutKutip">RM0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Sudah Kutip</div>
+                            <div class="fw-bold fs-5 text-success" id="dbSudahKutip">RM0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Belum Kutip</div>
+                            <div class="fw-bold fs-5 text-danger" id="dbBelumKutip">RM0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">% Kutipan</div>
+                            <div class="fw-bold fs-5 text-primary" id="dbPeratus">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2">📈 Trend Kutipan Bulanan</h6>
+                <div id="chartKutipan" class="mb-3 text-center"></div>
+
+                <h6 class="fw-bold mb-2">📊 Ikut Jenis Penyewa</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Jenis</th>
+                                <th>Bil</th>
+                                <th>Jumlah (RM)</th>
+                                <th>Sudah Bayar</th>
+                                <th>Belum Bayar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyJenis"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-2">⚠️ Senarai Belum Bayar</h6>
+                <div id="senaraiBelumBayar"></div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -192,13 +269,17 @@ const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
 const QR_URL = "https://gdienjr.github.io/dsat/QR.jpeg";
 const NAMA_SYARIKAT = "Teguh Resources & Services";
 const BANK_INFO = "DuitNow QR / Maybank\nNama: Teguh Resources & Services";
+const KADAR_SLOT_TAMBAHAN = 10;
 
 const NAMA_BULAN = ["", "Januari", "Februari", "Mac", "April", "Mei", "Jun",
     "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+const NAMA_BULAN_PENDEK = ["", "Jan", "Feb", "Mac", "Apr", "Mei", "Jun",
+    "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
 
 let dataPenyewa = [];
 let statusGerai = "";
 let bilDijana = [];
+let dataBilSemua = [];
 
 // LOGIN
 function semakPassword() {
@@ -210,6 +291,7 @@ function semakPassword() {
         const kini = new Date();
         document.getElementById("pilihBulan").value = kini.getMonth() + 1;
         document.getElementById("pilihTahun").value = kini.getFullYear();
+        document.getElementById("dashboardTahun").value = kini.getFullYear();
     } else {
         document.getElementById("pesanSalah").style.display = "block";
     }
@@ -229,10 +311,13 @@ function keluar() {
 function tukarTab(tab) {
     document.getElementById("tabJana").style.display = tab === "jana" ? "block" : "none";
     document.getElementById("tabRekod").style.display = tab === "rekod" ? "block" : "none";
+    document.getElementById("tabDashboard").style.display = tab === "dashboard" ? "block" : "none";
     const links = document.querySelectorAll("#tabMenu .nav-link");
     links[0].classList.toggle("active", tab === "jana");
     links[1].classList.toggle("active", tab === "rekod");
+    links[2].classList.toggle("active", tab === "dashboard");
     if (tab === "rekod") muatRekod();
+    if (tab === "dashboard") muatDashboard();
 }
 
 // MUAT DATA PENYEWA
@@ -306,9 +391,6 @@ function renderJadualPenyewa() {
         }
     });
 
-    var totalAsal = 0;
-    var totalAkhir = 0;
-
     Object.values(penyewaUnik).forEach(function(p, idx) {
         var jumlahAsal = p.jumlahAsal;
         var label = "";
@@ -326,6 +408,11 @@ function renderJadualPenyewa() {
             '<td>' + p.nama + '</td>' +
             '<td><small>' + label + '</small></td>' +
             '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
+            '<td>' +
+                '<input type="number" class="form-control form-control-sm input-tambahan tambahan-input" ' +
+                    'id="tambahan-' + idx + '" value="0" min="0" onchange="kiraSemula()">' +
+                '<small class="text-muted d-block tambahan-rm">RM0.00</small>' +
+            '</td>' +
             '<td><input type="number" class="form-control form-control-sm input-diskaun diskaun-input" ' +
                 'id="diskaun-' + idx + '" value="0" min="0" onchange="kiraSemula()"></td>' +
             '<td class="text-end jumlah-akhir">' + jumlahAsal.toFixed(2) + '</td>';
@@ -335,20 +422,17 @@ function renderJadualPenyewa() {
         tr.dataset.jenis = p.jenis;
         tr.dataset.kadar = p.kadar;
         tr.dataset.totalSlot = p.totalSlot || 0;
+        tr.dataset.tambahanSlot = 0;
+        tr.dataset.tambahanRM = 0;
 
         tbody.appendChild(tr);
-
-        totalAsal += jumlahAsal;
-        totalAkhir += jumlahAsal;
     });
-
-    document.getElementById("totalAsal").innerText = totalAsal.toFixed(2);
-    document.getElementById("totalDiskaun").innerText = "0.00";
-    document.getElementById("totalAkhir").innerText = totalAkhir.toFixed(2);
 
     document.getElementById("bahagianGerai").style.display = adaGerai ? "block" : "none";
     document.getElementById("bahagianPenyewa").style.display = "block";
+    kiraSemula();
 }
+
 // PILIH STATUS GERAI BERSELEKTIF
 function pilihGerai(status) {
     statusGerai = status;
@@ -367,27 +451,40 @@ function pilihGerai(status) {
     kiraSemula();
 }
 
-// KIRA SEMULA JUMLAH
+// KIRA SEMULA JUMLAH (termasuk Tambahan Slot)
 function kiraSemula() {
     const rows = document.querySelectorAll("#bodyPenyewa tr");
     var totalAsal = 0;
+    var totalTambahan = 0;
     var totalDiskaun = 0;
     var totalAkhir = 0;
 
     rows.forEach(function(tr) {
-        var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+        var asalSewa = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+
+        var tambahanInput = tr.querySelector(".tambahan-input");
+        var bilTambahan = parseInt(tambahanInput.value) || 0;
+        var tambahanRM = bilTambahan * KADAR_SLOT_TAMBAHAN;
+        tr.querySelector(".tambahan-rm").innerText = "RM" + tambahanRM.toFixed(2);
+        tr.dataset.tambahanSlot = bilTambahan;
+        tr.dataset.tambahanRM = tambahanRM;
+
         var diskaunInput = tr.querySelector(".diskaun-input");
         var diskaun = parseFloat(diskaunInput.value) || 0;
-        var akhir = asal - diskaun;
+
+        var jumlahSebelumDiskaun = asalSewa + tambahanRM;
+        var akhir = jumlahSebelumDiskaun - diskaun;
         if (akhir < 0) akhir = 0;
         tr.querySelector(".jumlah-akhir").innerText = akhir.toFixed(2);
 
-        totalAsal += asal;
+        totalAsal += asalSewa;
+        totalTambahan += tambahanRM;
         totalDiskaun += diskaun;
         totalAkhir += akhir;
     });
 
     document.getElementById("totalAsal").innerText = totalAsal.toFixed(2);
+    document.getElementById("totalTambahan").innerText = totalTambahan.toFixed(2);
     document.getElementById("totalDiskaun").innerText = totalDiskaun.toFixed(2);
     document.getElementById("totalAkhir").innerText = totalAkhir.toFixed(2);
 }
@@ -408,18 +505,24 @@ async function janaBilBulanan() {
 
     var penyewaList = [];
     rows.forEach(function(tr) {
-        var asal = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+        var asalSewa = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
+        var bilTambahan = parseInt(tr.dataset.tambahanSlot) || 0;
+        var tambahanRM = parseFloat(tr.dataset.tambahanRM) || 0;
         var diskaun = parseFloat(tr.querySelector(".diskaun-input").value) || 0;
-        var akhir = asal - diskaun;
+
+        var jumlahSebelumDiskaun = asalSewa + tambahanRM;
+        var akhir = jumlahSebelumDiskaun - diskaun;
         if (akhir < 0) akhir = 0;
 
         penyewaList.push({
             nama: tr.dataset.nama,
             telefon: tr.dataset.telefon,
             jenis: tr.dataset.jenis,
-            jumlahAsal: asal,
+            jumlahAsal: jumlahSebelumDiskaun,
             diskaun: diskaun,
-            jumlahAkhir: akhir
+            jumlahAkhir: akhir,
+            tambahanSlot: bilTambahan,
+            tambahanSlotRM: tambahanRM
         });
     });
 
@@ -462,7 +565,9 @@ function paparModalBil(senaraiBil, bulan, tahun) {
                 '<strong>' + bil.nama + '</strong>' +
                 '<span class="badge bg-secondary">Bil #' + bil.noBil + '</span>' +
             '</div>' +
-            '<div class="text-muted mb-2">' + bil.jenis + ' | RM' + bil.jumlahAkhir.toFixed(2) + '</div>' +
+            '<div class="text-muted mb-2">' + bil.jenis + ' | RM' + bil.jumlahAkhir.toFixed(2) +
+                (bil.tambahanSlot > 0 ? ' <span class="badge bg-info text-dark">+' + bil.tambahanSlot + ' slot tambahan</span>' : '') +
+            '</div>' +
             '<div class="d-flex gap-1">' +
                 '<button class="btn btn-sm btn-outline-danger flex-fill btnPDF" data-idx="' + idx + '">📄 PDF</button>' +
                 '<button class="btn btn-sm btn-success flex-fill btnWA" data-idx="' + idx + '">💬 WhatsApp</button>' +
@@ -553,34 +658,40 @@ async function muatTurunPDF(bil, bulan, tahun) {
     doc.text("Jumlah (RM)", 160, 86);
     doc.setTextColor(0, 0, 0);
 
-    // Baris keterangan
+    // Baris keterangan (item demi item)
     var y = 96;
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
 
-    // Keterangan mengikut jenis
-    var keterangan = "";
+    var tambahanSlotRM = bil.tambahanSlotRM || 0;
+    var tambahanSlot = bil.tambahanSlot || 0;
+    var asalSewa = bil.jumlahAsal - tambahanSlotRM;
+
+    var namaItemAsas = "";
     if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
-        keterangan = "Bayaran Tapak Jualan/Letrik/Air\nDewan Sivik Atas Tol";
+        namaItemAsas = "Bayaran Tapak Jualan/Letrik/Air";
     } else {
-        keterangan = "Bayaran Sewa " + bil.jenis + "\nBagi Bulan " + namaBulan + " " + tahun;
+        namaItemAsas = "Bayaran Sewa " + bil.jenis;
+    }
+    doc.text(namaItemAsas, 18, y);
+    doc.text(namaBulan + " " + tahun, 18, y + 5);
+    doc.text("RM " + asalSewa.toFixed(2), 160, y);
+    y += 11;
+
+    if (tambahanSlot > 0) {
+        doc.text("Tambahan Slot (" + tambahanSlot + " slot x RM" + KADAR_SLOT_TAMBAHAN.toFixed(2) + ")", 18, y);
+        doc.text("RM " + tambahanSlotRM.toFixed(2), 160, y);
+        y += 6;
     }
 
-    var lines = keterangan.split("\n");
-    lines.forEach(function(line) {
-        doc.text(line, 18, y);
-        y += 6;
-    });
-
-    // Jumlah asal
     if (bil.diskaun > 0) {
-        doc.text("RM " + bil.jumlahAsal.toFixed(2), 160, 96);
-        y = Math.max(y, 108);
-        doc.text("Diskaun:", 18, y);
+        doc.text("Diskaun", 18, y);
         doc.text("- RM " + bil.diskaun.toFixed(2), 160, y);
         y += 6;
     }
 
     // Garisan jumlah
+    y += 2;
     doc.line(15, y, 195, y);
     y += 6;
 
@@ -653,12 +764,20 @@ function hantarWABil(bil, bulan, tahun) {
     noWA = "60" + tel;
     }
 
+    var tambahanSlotRM = bil.tambahanSlotRM || 0;
+    var tambahanSlot = bil.tambahanSlot || 0;
+    var asalSewa = bil.jumlahAsal - tambahanSlotRM;
+
     var keterangan = "";
     if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
         keterangan = "Bayaran Tapak Jualan/Letrik/Air Dewan Sivik Atas Tol";
     } else {
         keterangan = "Bayaran Sewa " + bil.jenis + " bagi bulan " + namaBulan + " " + tahun;
     }
+
+    var tambahanInfo = tambahanSlot > 0
+        ? "\n➕ Tambahan Slot: " + tambahanSlot + " slot x RM" + KADAR_SLOT_TAMBAHAN.toFixed(2) + " = RM" + tambahanSlotRM.toFixed(2)
+        : "";
 
     var diskaunInfo = bil.diskaun > 0
         ? "\n💸 Diskaun: RM" + bil.diskaun.toFixed(2)
@@ -669,7 +788,8 @@ function hantarWABil(bil, bulan, tahun) {
         "Berikut adalah bil sewa untuk bulan *" + namaBulan + " " + tahun + "*:\n\n" +
         "📋 *No. Bil: " + bil.noBil + "*\n" +
         "📌 " + keterangan + "\n" +
-        "💰 Jumlah Asal: RM" + bil.jumlahAsal.toFixed(2) +
+        "💰 Sewa Asas: RM" + asalSewa.toFixed(2) +
+        tambahanInfo +
         diskaunInfo + "\n" +
         "✅ *Jumlah Perlu Dibayar: RM" + bil.jumlahAkhir.toFixed(2) + "*\n\n" +
         "💳 *Bayaran DuitNow QR (Teguh Resources & Services):*\n" +
@@ -730,6 +850,9 @@ function renderRekod(senarai) {
                 '<tr><td style="width:100px">👤 Nama</td><td><strong>' + bil.nama + '</strong></td></tr>' +
                 '<tr><td>📌 Jenis</td><td>' + bil.jenis + '</td></tr>' +
                 '<tr><td>📅 Tempoh</td><td>' + NAMA_BULAN[bil.bulan] + ' ' + bil.tahun + '</td></tr>' +
+                (bil.tambahanSlot > 0
+                    ? '<tr><td>➕ Tambahan</td><td>' + bil.tambahanSlot + ' slot (RM' + bil.tambahanSlotRM.toFixed(2) + ')</td></tr>'
+                    : '') +
                 '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + bil.jumlahAkhir.toFixed(2) + '</strong>' +
                     (bil.diskaun > 0 ? ' <small class="text-muted">(Diskaun: RM' + bil.diskaun.toFixed(2) + ')</small>' : '') +
                 '</td></tr>' +
@@ -778,6 +901,127 @@ async function kemaskiniStatusBil(baris, status) {
 
 function tutupModal() {
     document.getElementById("modalOverlay").style.display = "none";
+}
+
+// ================= DASHBOARD KEWANGAN =================
+
+async function muatDashboard() {
+    document.getElementById("loadingDashboard").style.display = "block";
+    document.getElementById("bahagianDashboard").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=bil");
+        const data = await response.json();
+        dataBilSemua = data.bil || [];
+        document.getElementById("loadingDashboard").style.display = "none";
+        renderDashboard();
+    } catch (err) {
+        document.getElementById("loadingDashboard").style.display = "none";
+        alert("Gagal muatkan dashboard.");
+    }
+}
+
+function renderDashboard() {
+    const tahun = parseInt(document.getElementById("dashboardTahun").value);
+    const senaraiTahun = dataBilSemua.filter(function(b) { return b.tahun == tahun; });
+
+    var patutKutip = 0, sudahKutip = 0, belumKutip = 0;
+    var ikutJenis = {};
+    var kutipanBulanan = new Array(13).fill(0);
+    var patutBulanan = new Array(13).fill(0);
+
+    senaraiTahun.forEach(function(b) {
+        patutKutip += b.jumlahAkhir;
+        patutBulanan[b.bulan] += b.jumlahAkhir;
+
+        if (b.status === "Sudah Bayar") {
+            sudahKutip += b.jumlahAkhir;
+            kutipanBulanan[b.bulan] += b.jumlahAkhir;
+        } else {
+            belumKutip += b.jumlahAkhir;
+        }
+
+        if (!ikutJenis[b.jenis]) ikutJenis[b.jenis] = { bil: 0, jumlah: 0, sudah: 0, belum: 0 };
+        ikutJenis[b.jenis].bil++;
+        ikutJenis[b.jenis].jumlah += b.jumlahAkhir;
+        if (b.status === "Sudah Bayar") ikutJenis[b.jenis].sudah += b.jumlahAkhir;
+        else ikutJenis[b.jenis].belum += b.jumlahAkhir;
+    });
+
+    const peratus = patutKutip > 0 ? (sudahKutip / patutKutip * 100) : 0;
+
+    document.getElementById("dbPatutKutip").innerText = "RM" + patutKutip.toFixed(2);
+    document.getElementById("dbSudahKutip").innerText = "RM" + sudahKutip.toFixed(2);
+    document.getElementById("dbBelumKutip").innerText = "RM" + belumKutip.toFixed(2);
+    document.getElementById("dbPeratus").innerText = peratus.toFixed(0) + "%";
+
+    // Jadual ikut jenis
+    const bodyJenis = document.getElementById("bodyJenis");
+    bodyJenis.innerHTML = "";
+    if (Object.keys(ikutJenis).length === 0) {
+        bodyJenis.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Tiada data.</td></tr>';
+    } else {
+        Object.keys(ikutJenis).forEach(function(jenis) {
+            const j = ikutJenis[jenis];
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+                '<td>' + jenis + '</td>' +
+                '<td>' + j.bil + '</td>' +
+                '<td class="text-end">' + j.jumlah.toFixed(2) + '</td>' +
+                '<td class="text-end text-success">' + j.sudah.toFixed(2) + '</td>' +
+                '<td class="text-end text-danger">' + j.belum.toFixed(2) + '</td>';
+            bodyJenis.appendChild(tr);
+        });
+    }
+
+    // Carta SVG
+    lukisCartaKutipan(kutipanBulanan, patutBulanan);
+
+    // Senarai belum bayar
+    const senaraiBelum = senaraiTahun.filter(function(b) { return b.status === "Belum Bayar"; })
+        .sort(function(a, b) { return b.baris - a.baris; });
+    const container = document.getElementById("senaraiBelumBayar");
+    container.innerHTML = "";
+    if (senaraiBelum.length === 0) {
+        container.innerHTML = '<p class="text-muted small text-center py-2">✅ Semua bil tahun ini sudah dibayar.</p>';
+    } else {
+        senaraiBelum.forEach(function(b) {
+            const div = document.createElement("div");
+            div.className = "d-flex justify-content-between align-items-center border-bottom py-2 small";
+            div.innerHTML =
+                '<div><strong>' + b.nama + '</strong><br>' +
+                '<span class="text-muted">' + NAMA_BULAN[b.bulan] + ' ' + b.tahun + ' | ' + b.jenis + '</span></div>' +
+                '<div class="text-danger fw-bold">RM' + b.jumlahAkhir.toFixed(2) + '</div>';
+            container.appendChild(div);
+        });
+    }
+
+    document.getElementById("bahagianDashboard").style.display = "block";
+}
+
+// Carta bar SVG ringkas: Sudah Kutip (hijau) berlapik atas Patut Kutip (kelabu)
+function lukisCartaKutipan(kutipanBulanan, patutBulanan) {
+    const lebar = 340, tinggi = 130, jarakLajur = 26;
+    var maxNilai = 1;
+    for (var i = 1; i <= 12; i++) {
+        if (patutBulanan[i] > maxNilai) maxNilai = patutBulanan[i];
+    }
+
+    var svg = '<svg viewBox="0 0 ' + lebar + ' ' + (tinggi + 22) + '" style="width:100%;max-width:420px;">';
+
+    for (var b = 1; b <= 12; b++) {
+        var x = (b - 1) * jarakLajur + 12;
+        var tinggiSudah = maxNilai > 0 ? (kutipanBulanan[b] / maxNilai) * tinggi : 0;
+        var tinggiPatut = maxNilai > 0 ? (patutBulanan[b] / maxNilai) * tinggi : 0;
+
+        svg += '<rect x="' + x + '" y="' + (tinggi - tinggiPatut) + '" width="18" height="' + tinggiPatut + '" fill="#e9ecef" rx="2"></rect>';
+        svg += '<rect x="' + x + '" y="' + (tinggi - tinggiSudah) + '" width="18" height="' + tinggiSudah + '" fill="#198754" rx="2"></rect>';
+        svg += '<text x="' + (x + 9) + '" y="' + (tinggi + 14) + '" font-size="8" text-anchor="middle" fill="#6c757d">' + NAMA_BULAN_PENDEK[b] + '</text>';
+    }
+    svg += '</svg>';
+
+    document.getElementById("chartKutipan").innerHTML = svg +
+        '<div class="small text-muted mt-1">🟩 Sudah Kutip &nbsp; ⬜ Patut Kutip</div>';
 }
 </script>
 </body>
