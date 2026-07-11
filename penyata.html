@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    registrations.forEach(function(r) { r.unregister(); });
+  });
+}
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penyata Kewangan DSAT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { background-color: #f0f2f5; }
+        .kad { max-width: 650px; margin: 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        #loginBox { max-width: 350px; margin: 80px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .baris-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+        .baris-item:last-child { border-bottom: none; }
+        .label-item { flex: 1; border: none; background: transparent; font-size: 0.9rem; }
+        .label-item:focus { outline: 1px solid #dee2e6; background: #fff; border-radius: 4px; }
+        .jumlah-item { width: 100px; text-align: right; }
+        .btn-fetch { width: 34px; height: 34px; padding: 0; font-size: 0.9rem; }
+        .btn-hapus-item { width: 28px; height: 28px; padding: 0; font-size: 0.8rem; color: #adb5bd; border: none; background: none; }
+        .btn-hapus-item:hover { color: #dc3545; }
+        .header-seksyen { background: #198754; color: white; padding: 10px 15px; border-radius: 8px 8px 0 0; font-weight: bold; display: flex; justify-content: space-between; }
+        .header-seksyen.keluaran { background: #dc3545; }
+        .kotak-seksyen { border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        .isi-seksyen { padding: 10px 15px; background: white; }
+        .kad-baki { background: #198754; color: white; border-radius: 10px; padding: 18px; text-align: center; }
+        .kad-dashboard { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px; text-align: center; background: #f8f9fa; }
+    </style>
+</head>
+<body class="p-3">
+
+<!-- Login -->
+<div id="loginBox">
+    <h5 class="text-center fw-bold mb-1">🔐 Penyata Kewangan DSAT</h5>
+    <p class="text-center text-muted small mb-4">Dewan Sivik Atas Tol</p>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Kata Laluan:</label>
+        <input type="password" id="inputPassword" class="form-control" placeholder="Masukkan kata laluan">
+    </div>
+    <div id="pesanSalah" class="text-danger small mb-2" style="display:none;">❌ Kata laluan salah.</div>
+    <button class="btn btn-success w-100" onclick="semakPassword()">Masuk</button>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display:none;">
+    <div class="kad">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="fw-bold mb-0">📊 Penyata Kewangan</h5>
+                <small class="text-muted">Dewan Sivik Atas Tol (DSAT)</small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" onclick="keluar()">Keluar</button>
+        </div>
+
+        <!-- Tab -->
+        <ul class="nav nav-tabs mb-3" id="tabMenu">
+            <li class="nav-item">
+                <a class="nav-link active" onclick="tukarTab('penyata')" href="#">📝 Penyata Bulanan</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('tahunan')" href="#">📈 Ringkasan Tahunan</a>
+            </li>
+        </ul>
+
+        <!-- Tab Penyata Bulanan -->
+        <div id="tabPenyata">
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <label class="form-label fw-semibold small">Bulan Penyata:</label>
+                    <select id="pilihBulan" class="form-select">
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Mac</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Jun</option>
+                        <option value="7">Julai</option>
+                        <option value="8">Ogos</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Disember</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label class="form-label fw-semibold small">Tahun:</label>
+                    <input type="number" id="pilihTahun" class="form-control" value="2026">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button class="btn btn-primary" onclick="muatPenyata()">🔍 Muat</button>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">📅 Bulan Rujukan Kutipan (untuk butang fetch ⟳):</label>
+                <div class="row g-2">
+                    <div class="col">
+                        <select id="rujukanBulan" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col">
+                        <input type="number" id="rujukanTahun" class="form-control form-control-sm" value="2026">
+                    </div>
+                </div>
+                <small class="text-muted">💡 Default: bulan sebelum bulan penyata (biasanya kutipan bulan lepas baru "settle").</small>
+            </div>
+
+            <div id="loadingPenyata" class="text-center py-3" style="display:none;">
+                <div class="spinner-border text-success spinner-border-sm"></div>
+                <span class="ms-2 text-muted small">Memuatkan penyata...</span>
+            </div>
+
+            <div id="bahagianPenyata" style="display:none;">
+
+                <!-- KEMASUKAN -->
+                <div class="kotak-seksyen">
+                    <div class="header-seksyen">
+                        <span>⬇️ Kemasukan</span>
+                        <span id="totalKemasukanPapar">RM0.00</span>
+                    </div>
+                    <div class="isi-seksyen" id="senaraiKemasukan"></div>
+                    <div class="p-2 border-top">
+                        <button class="btn btn-sm btn-outline-success w-100" onclick="tambahItem('kemasukan')">+ Tambah Kemasukan</button>
+                    </div>
+                </div>
+
+                <!-- KELUARAN -->
+                <div class="kotak-seksyen">
+                    <div class="header-seksyen keluaran">
+                        <span>⬆️ Keluaran</span>
+                        <span id="totalKeluaranPapar">RM0.00</span>
+                    </div>
+                    <div class="isi-seksyen" id="senaraiKeluaran"></div>
+                    <div class="p-2 border-top">
+                        <button class="btn btn-sm btn-outline-danger w-100" onclick="tambahItem('keluaran')">+ Tambah Keluaran</button>
+                    </div>
+                </div>
+
+                <!-- BAKI -->
+                <div class="kad-baki mb-3">
+                    <div class="small">BAKI</div>
+                    <div class="fs-3 fw-bold" id="bakiPapar">RM0.00</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success flex-fill" onclick="simpanPenyata()">💾 Simpan Penyata</button>
+                    <button class="btn btn-outline-secondary flex-fill" onclick="janaPDFPenyata()">📄 Cetak PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Ringkasan Tahunan -->
+        <div id="tabTahunan" style="display:none;">
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <label class="form-label fw-semibold small">Tahun:</label>
+                    <input type="number" id="tahunanTahun" class="form-control" value="2026">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button class="btn btn-primary" onclick="muatRingkasanTahunan()">🔍 Semak</button>
+                </div>
+            </div>
+
+            <div id="loadingTahunan" class="text-center py-3" style="display:none;">
+                <div class="spinner-border text-info spinner-border-sm"></div>
+                <span class="ms-2 text-muted small">Memuatkan ringkasan...</span>
+            </div>
+
+            <div id="bahagianTahunan" style="display:none;">
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Kemasukan</div>
+                            <div class="fw-bold text-success" id="thnKemasukan">RM0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Keluaran</div>
+                            <div class="fw-bold text-danger" id="thnKeluaran">RM0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="kad-dashboard">
+                            <div class="small text-muted">Baki Akhir</div>
+                            <div class="fw-bold text-primary" id="thnBaki">RM0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2">📈 Trend Bulanan</h6>
+                <div id="chartTahunan" class="mb-3 text-center"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered small">
+                        <thead class="table-light">
+                            <tr><th>Bulan</th><th>Kemasukan</th><th>Keluaran</th><th>Baki</th></tr>
+                        </thead>
+                        <tbody id="bodyTahunan"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbm8diQ8myu7YYU8DTdzHwSH8a9em3iX00nHn327l-NaNX_mzgzKd0vlVZLEv-9lY5/exec";
+const PASSWORD = "21070";
+const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
+const NAMA_SYARIKAT = "Teguh Resources & Services";
+
+const NAMA_BULAN = ["", "Januari", "Februari", "Mac", "April", "Mei", "Jun",
+    "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+const NAMA_BULAN_PENDEK = ["", "Jan", "Feb", "Mac", "Apr", "Mei", "Jun",
+    "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+
+// Item lalai — boleh ditambah/dibuang bebas
+const ITEM_LALAI_KEMASUKAN = [
+    { label: "Baki dari bulan lepas", jumlah: 0, jenis: "baki" },
+    { label: "Kutipan Sewaan Tetap Bulanan", jumlah: 0, jenis: "sewaBulanan" },
+    { label: "Kutipan Sewaan Harian", jumlah: 0, jenis: "sewaHarian" },
+    { label: "Sewa Alatan (kerusi)", jumlah: 0, jenis: "manual" }
+];
+
+const ITEM_LALAI_KELUARAN = [
+    { label: "Bil Letrik DSAT", jumlah: 0 },
+    { label: "Bil Letrik Bangunan JPKK", jumlah: 0 },
+    { label: "Bil Air (SATU) DSAT", jumlah: 0 },
+    { label: "Bil Air (SATU) Bangunan JPKK", jumlah: 0 },
+    { label: "Elaun Cleaner", jumlah: 0 },
+    { label: "Elaun Pengurus", jumlah: 0 }
+];
+
+let senaraiKemasukan = [];
+let senaraiKeluaran = [];
+
+// LOGIN
+function semakPassword() {
+    const input = document.getElementById("inputPassword").value;
+    if (input === PASSWORD) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        const kini = new Date();
+        document.getElementById("pilihBulan").value = kini.getMonth() + 1;
+        document.getElementById("pilihTahun").value = kini.getFullYear();
+        document.getElementById("tahunanTahun").value = kini.getFullYear();
+        isiPilihanRujukanBulan();
+        kemaskiniRujukanDefault();
+    } else {
+        document.getElementById("pesanSalah").style.display = "block";
+    }
+}
+
+document.getElementById("inputPassword").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") semakPassword();
+});
+
+function keluar() {
+    document.getElementById("loginBox").style.display = "block";
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("inputPassword").value = "";
+}
+
+function tukarTab(tab) {
+    document.getElementById("tabPenyata").style.display = tab === "penyata" ? "block" : "none";
+    document.getElementById("tabTahunan").style.display = tab === "tahunan" ? "block" : "none";
+    const links = document.querySelectorAll("#tabMenu .nav-link");
+    links[0].classList.toggle("active", tab === "penyata");
+    links[1].classList.toggle("active", tab === "tahunan");
+}
+
+function isiPilihanRujukanBulan() {
+    const sel = document.getElementById("rujukanBulan");
+    sel.innerHTML = "";
+    for (var b = 1; b <= 12; b++) {
+        var opt = document.createElement("option");
+        opt.value = b;
+        opt.innerText = NAMA_BULAN[b];
+        sel.appendChild(opt);
+    }
+}
+
+// Default bulan rujukan = bulan sebelum bulan penyata dipilih
+function kemaskiniRujukanDefault() {
+    var bulan = parseInt(document.getElementById("pilihBulan").value);
+    var tahun = parseInt(document.getElementById("pilihTahun").value);
+    var bulanRujukan = bulan - 1;
+    var tahunRujukan = tahun;
+    if (bulanRujukan < 1) { bulanRujukan = 12; tahunRujukan = tahun - 1; }
+    document.getElementById("rujukanBulan").value = bulanRujukan;
+    document.getElementById("rujukanTahun").value = tahunRujukan;
+}
+
+document.getElementById("pilihBulan").addEventListener("change", kemaskiniRujukanDefault);
+document.getElementById("pilihTahun").addEventListener("change", kemaskiniRujukanDefault);
+
+// ================= MUAT PENYATA =================
+async function muatPenyata() {
+    document.getElementById("loadingPenyata").style.display = "block";
+    document.getElementById("bahagianPenyata").style.display = "none";
+
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=muat&bulan=" + bulan + "&tahun=" + tahun);
+        const data = await response.json();
+        document.getElementById("loadingPenyata").style.display = "none";
+
+        if (data.ada) {
+            senaraiKemasukan = data.kemasukan;
+            senaraiKeluaran = data.keluaran;
+        } else {
+            // Guna template lalai, jumlah kosong (akan diisi manual/fetch)
+            senaraiKemasukan = JSON.parse(JSON.stringify(ITEM_LALAI_KEMASUKAN));
+            senaraiKeluaran = JSON.parse(JSON.stringify(ITEM_LALAI_KELUARAN));
+        }
+
+        renderSemua();
+        document.getElementById("bahagianPenyata").style.display = "block";
+
+        // Auto-fetch baki bulan lepas jika belum ada rekod
+        if (!data.ada) {
+            await fetchBaki();
+        }
+    } catch (err) {
+        document.getElementById("loadingPenyata").style.display = "none";
+        alert("Gagal muatkan penyata.");
+    }
+}
+
+// ================= RENDER =================
+function renderSemua() {
+    renderSeksyen("kemasukan");
+    renderSeksyen("keluaran");
+    kiraSemula();
+}
+
+function renderSeksyen(jenisSeksyen) {
+    const senarai = jenisSeksyen === "kemasukan" ? senaraiKemasukan : senaraiKeluaran;
+    const container = document.getElementById(jenisSeksyen === "kemasukan" ? "senaraiKemasukan" : "senaraiKeluaran");
+    container.innerHTML = "";
+
+    senarai.forEach(function(item, idx) {
+        const div = document.createElement("div");
+        div.className = "baris-item";
+
+        var btnFetchHTML = "";
+        if (jenisSeksyen === "kemasukan" && (item.jenis === "baki" || item.jenis === "sewaBulanan" || item.jenis === "sewaHarian")) {
+            btnFetchHTML = '<button type="button" class="btn btn-outline-primary btn-fetch" title="Tarik data auto">⟳</button>';
+        }
+
+        div.innerHTML =
+            '<input type="text" class="label-item" value="' + item.label + '">' +
+            '<input type="number" class="form-control form-control-sm jumlah-item" value="' + item.jumlah + '">' +
+            btnFetchHTML +
+            '<button type="button" class="btn-hapus-item">✕</button>';
+
+        const inputLabel = div.querySelector(".label-item");
+        const inputJumlah = div.querySelector(".jumlah-item");
+        inputLabel.addEventListener("change", function() { item.label = this.value; });
+        inputJumlah.addEventListener("input", function() { item.jumlah = parseFloat(this.value) || 0; kiraSemula(); });
+
+        const btnFetch = div.querySelector(".btn-fetch");
+        if (btnFetch) {
+            btnFetch.addEventListener("click", function() { fetchItem(item, inputJumlah, inputLabel); });
+        }
+
+        div.querySelector(".btn-hapus-item").addEventListener("click", function() {
+            senarai.splice(idx, 1);
+            renderSeksyen(jenisSeksyen);
+            kiraSemula();
+        });
+
+        container.appendChild(div);
+    });
+}
+
+// ================= FETCH DATA AUTO =================
+async function fetchItem(item, inputJumlah, inputLabel) {
+    if (item.jenis === "baki") return fetchBaki();
+
+    const bulanRujukan = parseInt(document.getElementById("rujukanBulan").value);
+    const tahunRujukan = parseInt(document.getElementById("rujukanTahun").value);
+    const endpoint = item.jenis === "sewaBulanan" ? "sewaBulanan" : "sewaHarian";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=" + endpoint + "&bulan=" + bulanRujukan + "&tahun=" + tahunRujukan);
+        const data = await response.json();
+        item.jumlah = data.total || 0;
+        inputJumlah.value = item.jumlah;
+
+        // Auto kemaskini label dengan bulan rujukan (cth: "-JUN26")
+        const labelBaru = item.label.replace(/\s*-\s*\w{3}\d{2,4}$/i, "") +
+            "-" + NAMA_BULAN_PENDEK[bulanRujukan].toUpperCase() + tahunRujukan.toString().slice(-2);
+        item.label = labelBaru;
+        inputLabel.value = labelBaru;
+
+        kiraSemula();
+    } catch (err) {
+        alert("Gagal fetch data.");
+    }
+}
+
+async function fetchBaki() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=baki&bulan=" + bulan + "&tahun=" + tahun);
+        const data = await response.json();
+
+        var itemBaki = senaraiKemasukan.find(function(i) { return i.jenis === "baki"; });
+        if (itemBaki) {
+            itemBaki.jumlah = data.baki || 0;
+            itemBaki.label = "Baki dari bulan " + NAMA_BULAN[data.bulan] + " " + data.tahun;
+            renderSeksyen("kemasukan");
+            kiraSemula();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// ================= TAMBAH ITEM =================
+function tambahItem(jenisSeksyen) {
+    const item = { label: "Item Baru", jumlah: 0, jenis: "manual" };
+    if (jenisSeksyen === "kemasukan") {
+        senaraiKemasukan.push(item);
+        renderSeksyen("kemasukan");
+    } else {
+        senaraiKeluaran.push(item);
+        renderSeksyen("keluaran");
+    }
+    kiraSemula();
+}
+
+// ================= KIRA SEMULA =================
+function kiraSemula() {
+    var totalKemasukan = 0;
+    var totalKeluaran = 0;
+    senaraiKemasukan.forEach(function(i) { totalKemasukan += parseFloat(i.jumlah) || 0; });
+    senaraiKeluaran.forEach(function(i) { totalKeluaran += parseFloat(i.jumlah) || 0; });
+
+    document.getElementById("totalKemasukanPapar").innerText = "RM" + totalKemasukan.toFixed(2);
+    document.getElementById("totalKeluaranPapar").innerText = "RM" + totalKeluaran.toFixed(2);
+    document.getElementById("bakiPapar").innerText = "RM" + (totalKemasukan - totalKeluaran).toFixed(2);
+}
+
+// ================= SIMPAN =================
+async function simpanPenyata() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    var totalKemasukan = 0;
+    var totalKeluaran = 0;
+    senaraiKemasukan.forEach(function(i) { totalKemasukan += parseFloat(i.jumlah) || 0; });
+    senaraiKeluaran.forEach(function(i) { totalKeluaran += parseFloat(i.jumlah) || 0; });
+
+    if (!confirm("Simpan penyata kewangan untuk " + NAMA_BULAN[bulan] + " " + tahun + "?")) return;
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                simpanPenyata: true,
+                bulan: bulan,
+                tahun: tahun,
+                kemasukan: senaraiKemasukan,
+                keluaran: senaraiKeluaran,
+                totalKemasukan: totalKemasukan,
+                totalKeluaran: totalKeluaran
+            })
+        });
+        alert("✅ Penyata berjaya disimpan.");
+    } catch (err) {
+        alert("Gagal simpan penyata.");
+    }
+}
+
+// ================= PDF =================
+async function janaPDFPenyata() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    var logoLoaded = false;
+    try {
+        const logoImg = await loadImage(LOGO_URL);
+        doc.addImage(logoImg, "PNG", 15, 10, 50, 15);
+        logoLoaded = true;
+    } catch (e) {}
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(NAMA_SYARIKAT, logoLoaded ? 70 : 15, 15);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Dewan Sivik Atas Tol (DSAT)", logoLoaded ? 70 : 15, 20);
+
+    doc.setLineWidth(0.5);
+    doc.line(15, 28, 195, 28);
+
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("PENYATA KEWANGAN DSAT " + NAMA_BULAN[bulan].toUpperCase() + " " + tahun, 105, 38, { align: "center" });
+
+    var y = 50;
+    var totalKemasukan = 0, totalKeluaran = 0;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("KEMASUKAN", 15, y);
+    doc.text("RM", 175, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    senaraiKemasukan.forEach(function(item) {
+        doc.text(item.label, 15, y);
+        doc.text(parseFloat(item.jumlah).toFixed(2), 190, y, { align: "right" });
+        totalKemasukan += parseFloat(item.jumlah) || 0;
+        y += 6;
+    });
+    doc.line(15, y, 195, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("JUMLAH KEMASUKAN", 15, y);
+    doc.text(totalKemasukan.toFixed(2), 190, y, { align: "right" });
+    y += 12;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("KELUARAN", 15, y);
+    doc.text("RM", 175, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    senaraiKeluaran.forEach(function(item) {
+        doc.text(item.label, 15, y);
+        doc.text(parseFloat(item.jumlah).toFixed(2), 190, y, { align: "right" });
+        totalKeluaran += parseFloat(item.jumlah) || 0;
+        y += 6;
+    });
+    doc.line(15, y, 195, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("JUMLAH KELUARAN", 15, y);
+    doc.text(totalKeluaran.toFixed(2), 190, y, { align: "right" });
+    y += 12;
+
+    doc.setFillColor(25, 135, 84);
+    doc.rect(15, y - 6, 180, 12, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.text("BAKI", 18, y + 2);
+    doc.text((totalKemasukan - totalKeluaran).toFixed(2), 190, y + 2, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+
+    doc.save("Penyata_Kewangan_DSAT_" + NAMA_BULAN[bulan] + tahun + ".pdf");
+}
+
+function loadImage(url) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = function() {
+            var canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+// ================= RINGKASAN TAHUNAN =================
+async function muatRingkasanTahunan() {
+    document.getElementById("loadingTahunan").style.display = "block";
+    document.getElementById("bahagianTahunan").style.display = "none";
+
+    const tahun = parseInt(document.getElementById("tahunanTahun").value);
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=ringkasanTahunan&tahun=" + tahun);
+        const data = await response.json();
+        document.getElementById("loadingTahunan").style.display = "none";
+        renderRingkasanTahunan(data.senarai || []);
+    } catch (err) {
+        document.getElementById("loadingTahunan").style.display = "none";
+        alert("Gagal muatkan ringkasan tahunan.");
+    }
+}
+
+function renderRingkasanTahunan(senarai) {
+    var totalKemasukan = 0, totalKeluaran = 0, bakiAkhir = 0;
+    var kemasukanBulanan = new Array(13).fill(0);
+    var keluaranBulanan = new Array(13).fill(0);
+
+    senarai.forEach(function(item) {
+        totalKemasukan += item.totalKemasukan;
+        totalKeluaran += item.totalKeluaran;
+        bakiAkhir = item.baki; // baki bulan terakhir yang direkod
+        kemasukanBulanan[item.bulan] = item.totalKemasukan;
+        keluaranBulanan[item.bulan] = item.totalKeluaran;
+    });
+
+    document.getElementById("thnKemasukan").innerText = "RM" + totalKemasukan.toFixed(2);
+    document.getElementById("thnKeluaran").innerText = "RM" + totalKeluaran.toFixed(2);
+    document.getElementById("thnBaki").innerText = "RM" + bakiAkhir.toFixed(2);
+
+    const bodyTahunan = document.getElementById("bodyTahunan");
+    bodyTahunan.innerHTML = "";
+    if (senarai.length === 0) {
+        bodyTahunan.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Tiada data penyata tahun ini.</td></tr>';
+    } else {
+        senarai.forEach(function(item) {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+                '<td>' + NAMA_BULAN[item.bulan] + '</td>' +
+                '<td class="text-end text-success">' + item.totalKemasukan.toFixed(2) + '</td>' +
+                '<td class="text-end text-danger">' + item.totalKeluaran.toFixed(2) + '</td>' +
+                '<td class="text-end fw-bold">' + item.baki.toFixed(2) + '</td>';
+            bodyTahunan.appendChild(tr);
+        });
+    }
+
+    lukisCartaTahunan(kemasukanBulanan, keluaranBulanan);
+    document.getElementById("bahagianTahunan").style.display = "block";
+}
+
+function lukisCartaTahunan(kemasukanBulanan, keluaranBulanan) {
+    const lebar = 340, tinggi = 130, jarakLajur = 26;
+    var maxNilai = 1;
+    for (var i = 1; i <= 12; i++) {
+        if (kemasukanBulanan[i] > maxNilai) maxNilai = kemasukanBulanan[i];
+        if (keluaranBulanan[i] > maxNilai) maxNilai = keluaranBulanan[i];
+    }
+
+    var svg = '<svg viewBox="0 0 ' + lebar + ' ' + (tinggi + 22) + '" style="width:100%;max-width:420px;">';
+
+    for (var b = 1; b <= 12; b++) {
+        var x = (b - 1) * jarakLajur + 12;
+        var tinggiKemasukan = maxNilai > 0 ? (kemasukanBulanan[b] / maxNilai) * tinggi : 0;
+        var tinggiKeluaran = maxNilai > 0 ? (keluaranBulanan[b] / maxNilai) * tinggi : 0;
+
+        svg += '<rect x="' + x + '" y="' + (tinggi - tinggiKemasukan) + '" width="8" height="' + tinggiKemasukan + '" fill="#198754" rx="1"></rect>';
+        svg += '<rect x="' + (x + 9) + '" y="' + (tinggi - tinggiKeluaran) + '" width="8" height="' + tinggiKeluaran + '" fill="#dc3545" rx="1"></rect>';
+        svg += '<text x="' + (x + 9) + '" y="' + (tinggi + 14) + '" font-size="8" text-anchor="middle" fill="#6c757d">' + NAMA_BULAN_PENDEK[b] + '</text>';
+    }
+    svg += '</svg>';
+
+    document.getElementById("chartTahunan").innerHTML = svg +
+        '<div class="small text-muted mt-1">🟩 Kemasukan &nbsp; 🟥 Keluaran</div>';
+}
+</script>
+</body>
+</html>
