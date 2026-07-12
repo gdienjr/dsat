@@ -401,19 +401,29 @@ function renderSeksyen(jenisSeksyen) {
 async function fetchItem(item, inputJumlah, inputLabel) {
     if (item.jenis === "baki") return fetchBaki();
 
-    const bulanRujukan = parseInt(document.getElementById("rujukanBulan").value);
-    const tahunRujukan = parseInt(document.getElementById("rujukanTahun").value);
     const endpoint = item.jenis === "sewaBulanan" ? "sewaBulanan" : "sewaHarian";
 
+    // Sewaan Tetap Bulanan: rujuk bulan LEPAS (bulan rujukan) — kutipan baru "settle" bulan depannya.
+    // Sewaan Harian (Tempahan Awam): rujuk bulan PENYATA SEMASA — status "Disahkan" dikira ikut bulan
+    // tempahan itu sendiri, bukan bulan sebelumnya.
+    var bulanGuna, tahunGuna;
+    if (item.jenis === "sewaHarian") {
+        bulanGuna = parseInt(document.getElementById("pilihBulan").value);
+        tahunGuna = parseInt(document.getElementById("pilihTahun").value);
+    } else {
+        bulanGuna = parseInt(document.getElementById("rujukanBulan").value);
+        tahunGuna = parseInt(document.getElementById("rujukanTahun").value);
+    }
+
     try {
-        const response = await fetch(SCRIPT_URL + "?penyata=" + endpoint + "&bulan=" + bulanRujukan + "&tahun=" + tahunRujukan);
+        const response = await fetch(SCRIPT_URL + "?penyata=" + endpoint + "&bulan=" + bulanGuna + "&tahun=" + tahunGuna);
         const data = await response.json();
         item.jumlah = data.total || 0;
         inputJumlah.value = item.jumlah;
 
-        // Auto kemaskini label dengan bulan rujukan (cth: "-JUN26")
+        // Auto kemaskini label dengan bulan yang digunakan (cth: "-JUL26")
         const labelBaru = item.label.replace(/\s*-\s*\w{3}\d{2,4}$/i, "") +
-            "-" + NAMA_BULAN_PENDEK[bulanRujukan].toUpperCase() + tahunRujukan.toString().slice(-2);
+            "-" + NAMA_BULAN_PENDEK[bulanGuna].toUpperCase() + tahunGuna.toString().slice(-2);
         item.label = labelBaru;
         inputLabel.value = labelBaru;
 
