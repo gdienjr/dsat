@@ -23,6 +23,7 @@ if ('serviceWorker' in navigator) {
         .label-item:focus { outline: 1px solid #dee2e6; background: #fff; border-radius: 4px; }
         .jumlah-item { width: 100px; text-align: right; }
         .btn-fetch { width: 34px; height: 34px; padding: 0; font-size: 0.9rem; }
+        .btn-tambah { width: 34px; height: 34px; padding: 0; font-size: 1rem; font-weight: bold; }
         .btn-hapus-item { width: 28px; height: 28px; padding: 0; font-size: 0.8rem; color: #adb5bd; border: none; background: none; }
         .btn-hapus-item:hover { color: #dc3545; }
         .header-seksyen { background: #198754; color: white; padding: 10px 15px; border-radius: 8px 8px 0 0; font-weight: bold; display: flex; justify-content: space-between; }
@@ -404,6 +405,7 @@ function renderSeksyen(jenisSeksyen) {
         div.innerHTML =
             '<input type="text" class="label-item" value="' + item.label + '">' +
             '<input type="number" class="form-control form-control-sm jumlah-item" value="' + item.jumlah + '">' +
+            '<button type="button" class="btn btn-outline-success btn-tambah" title="Tambah amaun">+</button>' +
             btnFetchHTML +
             '<button type="button" class="btn-hapus-item">✕</button>';
 
@@ -411,6 +413,9 @@ function renderSeksyen(jenisSeksyen) {
         const inputJumlah = div.querySelector(".jumlah-item");
         inputLabel.addEventListener("change", function() { item.label = this.value; });
         inputJumlah.addEventListener("input", function() { item.jumlah = parseFloat(this.value) || 0; kiraSemula(); });
+
+        const btnTambah = div.querySelector(".btn-tambah");
+        btnTambah.addEventListener("click", function() { tambahAmaun(item, inputJumlah); });
 
         const btnFetch = div.querySelector(".btn-fetch");
         if (btnFetch) {
@@ -425,6 +430,24 @@ function renderSeksyen(jenisSeksyen) {
 
         container.appendChild(div);
     });
+}
+
+// ================= TAMBAH AMAUN (accumulate) =================
+// Bila klik butang "+", minta nilai tambahan dan campurkan ke amaun sedia ada.
+// Berguna untuk item macam "Sewa Alatan (kerusi)" yang kutipan masuk sikit-sikit.
+function tambahAmaun(item, inputJumlah) {
+    var input = prompt("Masukkan amaun untuk ditambah kepada '" + item.label + "':", "");
+    if (input === null) return; // batal
+
+    var nilaiTambah = parseFloat(input);
+    if (isNaN(nilaiTambah)) {
+        alert("Sila masukkan nombor yang sah.");
+        return;
+    }
+
+    item.jumlah = (parseFloat(item.jumlah) || 0) + nilaiTambah;
+    inputJumlah.value = item.jumlah;
+    kiraSemula();
 }
 
 // ================= FETCH DATA AUTO =================
