@@ -328,6 +328,8 @@ async function muatPenyata() {
 
         // Baiki secara automatik jika label baki tersimpan rosak (cth. dari data lama/bug)
         perbaikiLabelBakiRosak();
+        // Baiki secara automatik jenis item Sewa Alatan jika data lama guna struktur sebelum fix
+        perbaikiJenisSewaAlatan();
 
         renderSemua();
         document.getElementById("bahagianPenyata").style.display = "block";
@@ -379,6 +381,17 @@ function perbaikiLabelBakiRosak() {
     if (itemBaki && itemBaki.label && itemBaki.label.indexOf("undefined") !== -1) {
         itemBaki.label = "Baki dari bulan lepas";
     }
+}
+
+// Data penyata yang disimpan SEBELUM ciri "akumulasi" ditambah masih guna jenis lama ("manual")
+// untuk item "Sewa Alatan". Betulkan secara automatik supaya butang "+" tetap keluar
+// walaupun rekod tu dimuatkan semula dari sheet Penyata_Kewangan (data lama).
+function perbaikiJenisSewaAlatan() {
+    senaraiKemasukan.forEach(function(item) {
+        if (item.label && item.label.indexOf("Sewa Alatan") !== -1) {
+            item.jenis = "akumulasi";
+        }
+    });
 }
 
 // ================= RENDER =================
