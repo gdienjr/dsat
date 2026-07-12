@@ -335,9 +335,39 @@ async function muatPenyata() {
         if (!data.ada) {
             await fetchBaki();
         }
+
+        // Auto-refresh Kutipan Sewaan Harian ikut bulan penyata SEMASA setiap kali dimuatkan
+        // (untuk monitoring live collection — tak payah klik ⟳ manual setiap kali)
+        await autoRefreshSewaHarian();
     } catch (err) {
         document.getElementById("loadingPenyata").style.display = "none";
         alert("Gagal muatkan penyata.");
+    }
+}
+
+// Auto tarik semula nilai Kutipan Sewaan Harian ikut bulan/tahun penyata yang sedang dipilih.
+// Dipanggil automatik setiap kali muatPenyata() — supaya angka kutipan harian sentiasa terkini
+// tanpa perlu klik ⟳ manual.
+async function autoRefreshSewaHarian() {
+    var itemHarian = senaraiKemasukan.find(function(i) { return i.jenis === "sewaHarian"; });
+    if (!itemHarian) return;
+
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=sewaHarian&bulan=" + bulan + "&tahun=" + tahun);
+        const data = await response.json();
+        itemHarian.jumlah = data.total || 0;
+
+        const labelBaru = itemHarian.label.replace(/\s*-\s*\w{3}\d{2,4}$/i, "") +
+            "-" + NAMA_BULAN_PENDEK[bulan].toUpperCase() + tahun.toString().slice(-2);
+        itemHarian.label = labelBaru;
+
+        renderSeksyen("kemasukan");
+        kiraSemula();
+    } catch (err) {
+        console.error("Gagal auto-refresh sewaHarian:", err);
     }
 }
 
