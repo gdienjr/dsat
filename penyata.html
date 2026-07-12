@@ -229,7 +229,7 @@ const ITEM_LALAI_KEMASUKAN = [
     { label: "Baki dari bulan lepas", jumlah: 0, jenis: "baki" },
     { label: "Kutipan Sewaan Tetap Bulanan", jumlah: 0, jenis: "sewaBulanan" },
     { label: "Kutipan Sewaan Harian", jumlah: 0, jenis: "sewaHarian" },
-    { label: "Sewa Alatan (kerusi)", jumlah: 0, jenis: "manual" }
+    { label: "Sewa Alatan (kerusi)", jumlah: 0, jenis: "akumulasi" }
 ];
 
 const ITEM_LALAI_KELUARAN = [
@@ -402,10 +402,15 @@ function renderSeksyen(jenisSeksyen) {
             btnFetchHTML = '<button type="button" class="btn btn-outline-primary btn-fetch" title="Tarik data auto">⟳</button>';
         }
 
+        var btnTambahHTML = "";
+        if (item.jenis === "akumulasi") {
+            btnTambahHTML = '<button type="button" class="btn btn-outline-success btn-tambah" title="Tambah amaun">+</button>';
+        }
+
         div.innerHTML =
             '<input type="text" class="label-item" value="' + item.label + '">' +
             '<input type="number" class="form-control form-control-sm jumlah-item" value="' + item.jumlah + '">' +
-            '<button type="button" class="btn btn-outline-success btn-tambah" title="Tambah amaun">+</button>' +
+            btnTambahHTML +
             btnFetchHTML +
             '<button type="button" class="btn-hapus-item">✕</button>';
 
@@ -415,7 +420,9 @@ function renderSeksyen(jenisSeksyen) {
         inputJumlah.addEventListener("input", function() { item.jumlah = parseFloat(this.value) || 0; kiraSemula(); });
 
         const btnTambah = div.querySelector(".btn-tambah");
-        btnTambah.addEventListener("click", function() { tambahAmaun(item, inputJumlah); });
+        if (btnTambah) {
+            btnTambah.addEventListener("click", function() { tambahAmaun(item, inputJumlah); });
+        }
 
         const btnFetch = div.querySelector(".btn-fetch");
         if (btnFetch) {
@@ -434,8 +441,8 @@ function renderSeksyen(jenisSeksyen) {
 
 // ================= TAMBAH AMAUN (accumulate) =================
 // Bila klik butang "+", minta nilai tambahan dan campurkan ke amaun sedia ada.
-// Berguna untuk item macam "Sewa Alatan (kerusi)" yang kutipan masuk sikit-sikit.
-function tambahAmaun(item, inputJumlah) {
+// Setiap tambahan direkod ke sheet "Log" (audit trail) supaya boleh disemak kemudian.
+async function tambahAmaun(item, inputJumlah) {
     var input = prompt("Masukkan amaun untuk ditambah kepada '" + item.label + "':", "");
     if (input === null) return; // batal
 
@@ -445,9 +452,29 @@ function tambahAmaun(item, inputJumlah) {
         return;
     }
 
-    item.jumlah = (parseFloat(item.jumlah) || 0) + nilaiTambah;
+    var jumlahLama = parseFloat(item.jumlah) || 0;
+    item.jumlah = jumlahLama + nilaiTambah;
     inputJumlah.value = item.jumlah;
     kiraSemula();
+
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                logTambahanAmaun: true,
+                bulan: bulan,
+                tahun: tahun,
+                label: item.label,
+                tambah: nilaiTambah,
+                jumlahBaru: item.jumlah
+            })
+        });
+    } catch (err) {
+        console.error("Gagal rekod log tambahan:", err);
+    }
 }
 
 // ================= FETCH DATA AUTO =================
