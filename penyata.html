@@ -325,6 +325,9 @@ async function muatPenyata() {
             senaraiKeluaran = JSON.parse(JSON.stringify(ITEM_LALAI_KELUARAN));
         }
 
+        // Baiki secara automatik jika label baki tersimpan rosak (cth. dari data lama/bug)
+        perbaikiLabelBakiRosak();
+
         renderSemua();
         document.getElementById("bahagianPenyata").style.display = "block";
 
@@ -335,6 +338,15 @@ async function muatPenyata() {
     } catch (err) {
         document.getElementById("loadingPenyata").style.display = "none";
         alert("Gagal muatkan penyata.");
+    }
+}
+
+// Jika label item baki mengandungi "undefined" (data lama yang tersimpan rosak),
+// gantikan dengan label neutral supaya tak papar teks pelik sementara tunggu fetch semula.
+function perbaikiLabelBakiRosak() {
+    var itemBaki = senaraiKemasukan.find(function(i) { return i.jenis === "baki"; });
+    if (itemBaki && itemBaki.label && itemBaki.label.indexOf("undefined") !== -1) {
+        itemBaki.label = "Baki dari bulan lepas";
     }
 }
 
@@ -415,6 +427,14 @@ async function fetchBaki() {
     const bulan = parseInt(document.getElementById("pilihBulan").value);
     const tahun = parseInt(document.getElementById("pilihTahun").value);
 
+    // Kira bulan/tahun rujukan SENDIRI di frontend (jangan bergantung 100% pada
+    // field data.bulan/data.tahun dari server — kalau deployment Apps Script
+    // masih versi lama semasa fetch, field tu boleh undefined dan punca label
+    // jadi "Baki dari bulan undefined undefined").
+    var bulanLepas = bulan - 1;
+    var tahunLepas = tahun;
+    if (bulanLepas < 1) { bulanLepas = 12; tahunLepas = tahun - 1; }
+
     try {
         const response = await fetch(SCRIPT_URL + "?penyata=baki&bulan=" + bulan + "&tahun=" + tahun);
         const data = await response.json();
@@ -422,7 +442,15 @@ async function fetchBaki() {
         var itemBaki = senaraiKemasukan.find(function(i) { return i.jenis === "baki"; });
         if (itemBaki) {
             itemBaki.jumlah = data.baki || 0;
-            itemBaki.label = "Baki dari bulan " + NAMA_BULAN[data.bulan] + " " + data.tahun;
+
+            // Guna nilai dari server HANYA jika sah (nombor 1-12 / tahun sah).
+            // Kalau tidak, fallback ke pengiraan tempatan supaya label tak sekali-kali "undefined".
+            var bLabel = (typeof data.bulan === "number" && data.bulan >= 1 && data.bulan <= 12)
+                ? data.bulan : bulanLepas;
+            var tLabel = (typeof data.tahun === "number" && !isNaN(data.tahun))
+                ? data.tahun : tahunLepas;
+
+            itemBaki.label = "Baki dari bulan " + NAMA_BULAN[bLabel] + " " + tLabel;
             renderSeksyen("kemasukan");
             kiraSemula();
         }
