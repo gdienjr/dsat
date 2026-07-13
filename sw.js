@@ -3,7 +3,6 @@ const urlsToCache = [
   "/dsat/index.html",
   "/dsat/jadual.html",
   "/dsat/admin.html",
-  "/dsat/menu.html",
   "/dsat/icon-192.png",
   "/dsat/icon-512.png"
 ];
