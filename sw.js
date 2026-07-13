@@ -1,48 +1,48 @@
-const CACHE_NAME = "dsat-v2";
-const urlsToCache = [
-  "/dsat/index.html",
-  "/dsat/jadual.html",
-  "/dsat/admin.html",
-  "/dsat/menu.html",
-  "/dsat/icon-192.png",
-  "/dsat/icon-512.png"
-];
+// Service Worker untuk index.html (Tempahan Dewan DSAT - borang awam)
+// Strategi "network-first": sentiasa cuba ambil versi TERKINI dari server dulu,
+// cache cuma fallback bila offline. Ini elak isu "update tak nampak sebab cache basi".
+//
+// Bila buat perubahan pada index.html, naikkan nombor versi CACHE_NAME di bawah (v1 -> v2)
+// supaya cache lama automatik dibuang semasa "activate".
 
-self.addEventListener("install", function(e) {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(urlsToCache);
-    })
-  );
+const CACHE_NAME = 'dsat-index-v1';
+const FAIL_UNTUK_CACHE = ['index.html'];
+
+self.addEventListener('install', function(event) {
   self.skipWaiting();
-});
-
-self.addEventListener("activate", function(e) {
-  e.waitUntil(
-    caches.keys().then(function(keys) {
-      return Promise.all(
-        keys.filter(function(key) { return key !== CACHE_NAME; })
-            .map(function(key) { return caches.delete(key); })
-      );
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(FAIL_UNTUK_CACHE);
     })
   );
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", function(e) {
-  // Bypass POST requests
-  if (e.request.method !== "GET") return;
-
-  // Bypass Apps Script requests
-  if (e.request.url.includes("script.google.com")) return;
-
-  // Bypass external CDN
-  if (e.request.url.includes("cdn.jsdelivr.net")) return;
-  if (e.request.url.includes("cdnjs.cloudflare.com")) return;
-
-  e.respondWith(
-    caches.match(e.request).then(function(response) {
-      return response || fetch(e.request);
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(namaCache) {
+      return Promise.all(
+        namaCache
+          .filter(function(nama) { return nama !== CACHE_NAME; })
+          .map(function(nama) { return caches.delete(nama); })
+      );
+    }).then(function() {
+      return self.clients.claim();
     })
+  );
+});
+
+self.addEventListener('fetch', function(event) {
+  event.respondWith(
+    fetch(event.request)
+      .then(function(response) {
+        var responseClone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, responseClone);
+        });
+        return response;
+      })
+      .catch(function() {
+        return caches.match(event.request);
+      })
   );
 });

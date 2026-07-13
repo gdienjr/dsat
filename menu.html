@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
+    <link rel="manifest" href="manifest-menu.json">
+    <meta name="theme-color" content="#198754">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/dsat/sw-menu.js')
+    .then(function() { console.log('SW Menu berdaftar'); })
+    .catch(function(err) { console.log('SW gagal:', err); });
+}
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Menu Utama - Sistem DSAT</title>
