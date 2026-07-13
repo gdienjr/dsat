@@ -58,7 +58,10 @@ if ('serviceWorker' in navigator) {
                 <h5 class="fw-bold mb-0">📊 Penyata Kewangan</h5>
                 <small class="text-muted">Dewan Sivik Atas Tol (DSAT)</small>
             </div>
-            <button class="btn btn-outline-secondary btn-sm" onclick="keluar()">Keluar</button>
+            <div class="d-flex gap-2">
+                <a href="menu.html" class="btn btn-outline-primary btn-sm">← Menu</a>
+                <button class="btn btn-outline-secondary btn-sm" onclick="keluar()">Keluar</button>
+            </div>
         </div>
 
         <!-- Tab -->
@@ -245,17 +248,22 @@ let senaraiKemasukan = [];
 let senaraiKeluaran = [];
 
 // LOGIN
+function bukaDashboardPenyata() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    const kini = new Date();
+    document.getElementById("pilihBulan").value = kini.getMonth() + 1;
+    document.getElementById("pilihTahun").value = kini.getFullYear();
+    document.getElementById("tahunanTahun").value = kini.getFullYear();
+    isiPilihanRujukanBulan();
+    kemaskiniRujukanDefault();
+}
+
 function semakPassword() {
     const input = document.getElementById("inputPassword").value;
     if (input === PASSWORD) {
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-        const kini = new Date();
-        document.getElementById("pilihBulan").value = kini.getMonth() + 1;
-        document.getElementById("pilihTahun").value = kini.getFullYear();
-        document.getElementById("tahunanTahun").value = kini.getFullYear();
-        isiPilihanRujukanBulan();
-        kemaskiniRujukanDefault();
+        sessionStorage.setItem("DSAT_AUTH", "1"); // sesi bersama untuk semua modul DSAT
+        bukaDashboardPenyata();
     } else {
         document.getElementById("pesanSalah").style.display = "block";
     }
@@ -266,9 +274,16 @@ document.getElementById("inputPassword").addEventListener("keypress", function(e
 });
 
 function keluar() {
+    sessionStorage.removeItem("DSAT_AUTH");
     document.getElementById("loginBox").style.display = "block";
     document.getElementById("dashboard").style.display = "none";
     document.getElementById("inputPassword").value = "";
+}
+
+// Jika sudah login melalui menu.html (atau modul lain) dalam sesi yang sama,
+// terus masuk dashboard tanpa tanya password lagi.
+if (sessionStorage.getItem("DSAT_AUTH") === "1") {
+    bukaDashboardPenyata();
 }
 
 function tukarTab(tab) {
