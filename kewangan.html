@@ -270,6 +270,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbm8diQ8myu7YYU8DTd
 const PASSWORD = "21070";
 const LOGO_URL = "https://gdienjr.github.io/dsat/logo.png";
 const QR_URL = "https://gdienjr.github.io/dsat/QR.jpeg";
+const BASE_URL = "https://gdienjr.github.io/dsat/";
 const NAMA_SYARIKAT = "Teguh Resources & Services";
 const BANK_INFO = "DuitNow QR / Maybank\nNama: Teguh Resources & Services";
 const KADAR_SLOT_TAMBAHAN = 10;
@@ -766,7 +767,9 @@ function loadImage(url) {
     });
 }
 
-// HANTAR WHATSAPP BIL
+// HANTAR WHATSAPP BIL — kini guna pautan Bil Online (bil.html?id=token)
+// bukan lagi hantar link QR terus & breakdown penuh dalam teks.
+// Pecahan caj & QR DuitNow kini dipaparkan terus dalam bil.html.
 function hantarWABil(bil, bulan, tahun) {
     const namaBulan = NAMA_BULAN[bulan];
     var tel = bil.telefon.toString().replace(/\s/g, "").replace(/^'/, "");
@@ -779,38 +782,20 @@ function hantarWABil(bil, bulan, tahun) {
     noWA = "60" + tel;
     }
 
-    var tambahanSlotRM = bil.tambahanSlotRM || 0;
-    var tambahanSlot = bil.tambahanSlot || 0;
-    var asalSewa = bil.jumlahAsal - tambahanSlotRM;
-
-    var keterangan = "";
-    if (bil.jenis === "Gerai Tetap" || bil.jenis === "Gerai Berselektif") {
-        keterangan = "Bayaran Tapak Jualan/Letrik/Air Dewan Sivik Atas Tol";
-    } else {
-        keterangan = "Bayaran Sewa " + bil.jenis + " bagi bulan " + namaBulan + " " + tahun;
+    if (!bil.token) {
+        alert("⚠️ Bil ini belum ada Token (kemungkinan bil lama sebelum ciri Bil Online). Sila jana semula bil, atau jalankan backfillTokenBilSediaAda() di Apps Script.");
+        return;
     }
 
-    var tambahanInfo = tambahanSlot > 0
-        ? "\n➕ Tambahan Slot: " + tambahanSlot + " slot x RM" + KADAR_SLOT_TAMBAHAN.toFixed(2) + " = RM" + tambahanSlotRM.toFixed(2)
-        : "";
-
-    var diskaunInfo = bil.diskaun > 0
-        ? "\n💸 Diskaun: RM" + bil.diskaun.toFixed(2)
-        : "";
+    const pautanBil = BASE_URL + "bil.html?id=" + bil.token;
 
     const mesej =
         "Assalamualaikum " + bil.nama + ",\n\n" +
-        "Berikut adalah bil sewa untuk bulan *" + namaBulan + " " + tahun + "*:\n\n" +
-        "📋 *No. Bil: " + bil.noBil + "*\n" +
-        "📌 " + keterangan + "\n" +
-        "💰 Sewa Asas: RM" + asalSewa.toFixed(2) +
-        tambahanInfo +
-        diskaunInfo + "\n" +
-        "✅ *Jumlah Perlu Dibayar: RM" + bil.jumlahAkhir.toFixed(2) + "*\n\n" +
-        "💳 *Bayaran DuitNow QR (Teguh Resources & Services):*\n" +
-        QR_URL + "\n\n" +
-        "Scan QR di atas untuk membuat bayaran.\n" +
-        "Jika bayar cash, sila maklumkan pengendali dewan.\n\n" +
+        "Bil sewa Dewan Sivik Atas Tol bagi *" + namaBulan + " " + tahun + "* (No. Bil " + bil.noBil + ") telah tersedia.\n\n" +
+        "💰 Jumlah Perlu Dibayar: *RM" + bil.jumlahAkhir.toFixed(2) + "*\n\n" +
+        "Sila klik pautan berikut untuk lihat bil penuh & buat bayaran (QR DuitNow disediakan dalam pautan):\n" +
+        pautanBil + "\n\n" +
+        "Selepas bayar, sila hantar resit terus melalui butang dalam pautan tersebut.\n\n" +
         "Terima kasih. 🙏";
 
     window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
