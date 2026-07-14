@@ -856,6 +856,9 @@ function renderRekod(senarai) {
                 '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + bil.jumlahAkhir.toFixed(2) + '</strong>' +
                     (bil.diskaun > 0 ? ' <small class="text-muted">(Diskaun: RM' + bil.diskaun.toFixed(2) + ')</small>' : '') +
                 '</td></tr>' +
+                (bil.status === "Sudah Bayar" && bil.kaedahBayaran
+                    ? '<tr><td>💳 Kaedah</td><td>' + bil.kaedahBayaran + '</td></tr>'
+                    : '') +
             '</table>' +
             '<div class="d-flex gap-2">' +
                 '<button class="btn btn-sm btn-outline-danger flex-fill btnPDF">📄 PDF</button>' +
@@ -874,7 +877,7 @@ function renderRekod(senarai) {
 
         if (bil.status === "Belum Bayar") {
             div.querySelector(".btnBayar").addEventListener("click", function() {
-                kemaskiniStatusBil(bil.baris, "Sudah Bayar");
+                bukaPilihKaedahBayaran(bil.baris);
             });
         } else {
             div.querySelector(".btnBelumBayar").addEventListener("click", function() {
@@ -886,13 +889,39 @@ function renderRekod(senarai) {
     });
 }
 
-// KEMASKINI STATUS BIL
-async function kemaskiniStatusBil(baris, status) {
-    const label = status === "Sudah Bayar" ? "menandakan sebagai sudah bayar" : "menukar semula ke belum bayar";
-    if (!confirm("Anda pasti mahu " + label + "?")) return;
+// PILIH KAEDAH BAYARAN sebelum tandakan "Sudah Bayar" (guna modal sedia ada)
+function bukaPilihKaedahBayaran(baris) {
+    document.getElementById("modalTajuk").innerText = "💰 Pilih Kaedah Bayaran";
+    const container = document.getElementById("senaraiAksi");
+    container.innerHTML =
+        '<p class="text-muted small mb-3">Bagaimana penyewa membuat bayaran untuk bil ini?</p>' +
+        '<div class="d-flex gap-2 mb-2">' +
+            '<button class="btn btn-outline-success flex-fill py-3" id="btnKaedahCash">💵<br>Cash</button>' +
+            '<button class="btn btn-outline-primary flex-fill py-3" id="btnKaedahOnline">📱<br>Online Bank / QR</button>' +
+        '</div>';
+
+    document.getElementById("btnKaedahCash").onclick = function() {
+        tutupModal();
+        kemaskiniStatusBil(baris, "Sudah Bayar", "Cash");
+    };
+    document.getElementById("btnKaedahOnline").onclick = function() {
+        tutupModal();
+        kemaskiniStatusBil(baris, "Sudah Bayar", "Online Bank/QR");
+    };
+
+    document.getElementById("modalOverlay").style.display = "block";
+}
+
+// KEMASKINI STATUS BIL (kaedah hanya relevan bila status = "Sudah Bayar")
+async function kemaskiniStatusBil(baris, status, kaedah) {
+    if (status === "Belum Bayar") {
+        if (!confirm("Anda pasti mahu menukar semula ke belum bayar?")) return;
+    }
 
     try {
-        await fetch(SCRIPT_URL + "?action=kemaskiniStatusBil&baris=" + baris + "&status=" + encodeURIComponent(status));
+        var url = SCRIPT_URL + "?action=kemaskiniStatusBil&baris=" + baris + "&status=" + encodeURIComponent(status);
+        if (kaedah) url += "&kaedah=" + encodeURIComponent(kaedah);
+        await fetch(url);
         muatRekod();
     } catch (err) {
         alert("Gagal kemaskini status.");
