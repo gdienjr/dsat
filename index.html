@@ -30,16 +30,12 @@ if ('serviceWorker' in navigator) {
 
 <div class="kad">
     <h4 class="text-center fw-bold mb-1">🏛️ Tempahan Dewan</h4>
-    <p class="text-center text-muted mb-4">Dewan Sivik Atas Tol (DSAT)</p>
+    <p class="text-center text-muted mb-3">Dewan Sivik Atas Tol (DSAT)</p>
 
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Nama Penyewa:</label>
-        <input type="text" id="nama" class="form-control" placeholder="Nama Penuh">
+    <div class="alert alert-light border text-center small mb-4">
+        💰 Kadar Sewa: <strong>RM10 / slot</strong> &nbsp;<span class="text-muted">(1 slot = 1 jam)</span>
     </div>
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Nombor Telefon:</label>
-        <input type="tel" id="telefon" class="form-control" placeholder="cth: 0123456789">
-    </div>
+
     <div class="mb-3">
         <label class="form-label fw-semibold">Pilih Tarikh:</label>
         <input type="date" id="tarikh" class="form-control">
@@ -67,9 +63,22 @@ if ('serviceWorker' in navigator) {
             <strong>💰 Jumlah Bayaran: <span id="jumlahHarga" class="text-success"></span></strong>
         </div>
 
-        <button type="button" id="btnHantar" class="btn btn-primary w-100 mt-3" onclick="hantarTempahan()">
-            📨 Hantar Tempahan
-        </button>
+        <div id="bahagianMaklumatDiri" class="mt-4 pt-4 border-top" style="display:none;">
+            <p class="small text-muted mb-3">👍 Slot dipilih! Sila lengkapkan maklumat untuk teruskan tempahan:</p>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nama Anda:</label>
+                <input type="text" id="nama" class="form-control" placeholder="Nama Penuh">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nombor Telefon:</label>
+                <input type="tel" id="telefon" class="form-control" placeholder="cth: 0123456789">
+            </div>
+
+            <button type="button" id="btnHantar" class="btn btn-primary w-100 mt-2" onclick="hantarTempahan()">
+                📨 Hantar Tempahan
+            </button>
+        </div>
     </div>
 </div>
 
@@ -191,11 +200,15 @@ function toggleSelect(btn, masa) {
 
 function kemaskiniRingkasan() {
     const ringkasan = document.getElementById("ringkasanPilihan");
+    const bahagianDiri = document.getElementById("bahagianMaklumatDiri");
+
     if (pilihanSlot.length === 0) {
         ringkasan.style.display = "none";
+        bahagianDiri.style.display = "none";
         return;
     }
     ringkasan.style.display = "block";
+    bahagianDiri.style.display = "block";
     document.getElementById("senaraiPilihan").innerText = pilihanSlot.map(format12Jam).join(", ");
     document.getElementById("jumlahHarga").innerText = "RM" + (pilihanSlot.length * HARGA_SLOT).toFixed(2);
 }
@@ -300,6 +313,7 @@ function tutupModal() {
     document.getElementById("telefon").value = "";
     document.getElementById("tarikh").value = "";
     document.getElementById("bahagianSlot").style.display = "none";
+    document.getElementById("bahagianMaklumatDiri").style.display = "none";
     document.getElementById("ringkasanPilihan").style.display = "none";
 }
 
