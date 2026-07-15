@@ -861,15 +861,21 @@ function renderRekod(senarai) {
                     : '') +
             '</table>' +
             '<div class="d-flex gap-2">' +
-                '<button class="btn btn-sm btn-outline-danger flex-fill btnPDF">📄 PDF</button>' +
+                '<button class="btn btn-sm btn-outline-primary flex-fill btnLink">' +
+                    (bil.status === "Sudah Bayar" ? '🧾 Link Resit' : '🔗 Link Bil') +
+                '</button>' +
                 '<button class="btn btn-sm btn-success flex-fill btnWA">💬 WA</button>' +
                 (bil.status === "Belum Bayar"
                     ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">✅ Tandakan Bayar</button>'
                     : '<button class="btn btn-sm btn-outline-secondary flex-fill btnBelumBayar">↩️ PAID</button>') +
             '</div>';
 
-        div.querySelector(".btnPDF").addEventListener("click", function() {
-            muatTurunPDF(bil, bil.bulan, bil.tahun);
+        div.querySelector(".btnLink").addEventListener("click", function() {
+            if (!bil.token) { alert("⚠️ Bil ini tiada Token (bil lama). Sila jana semula bil atau jalankan backfillTokenBilSediaAda()."); return; }
+            var link = bil.status === "Sudah Bayar"
+                ? BASE_URL + "resit.html?id=" + bil.token
+                : BASE_URL + "bil.html?id=" + bil.token;
+            window.open(link, "_blank");
         });
         div.querySelector(".btnWA").addEventListener("click", function() {
             hantarWABil(bil, bil.bulan, bil.tahun);
