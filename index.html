@@ -78,6 +78,9 @@ if ('serviceWorker' in navigator) {
     <div style="display:flex; justify-content:center; align-items:center; height:100%;">
         <div style="background:white; border-radius:12px; padding:25px; max-width:420px; width:90%; text-align:center;">
             <h5 class="fw-bold mb-3">✅ Tempahan Dihantar!</h5>
+            <div id="amaranPendua" class="alert alert-warning small text-start mb-3" style="display:none;">
+                🔁 <strong>Perhatian:</strong> Sistem kesan tempahan serupa baru sahaja dihantar untuk slot yang sama. Ini mungkin kerana percubaan hantar semula (contohnya sebab rangkaian terputus). Tempahan asal berkemungkinan sudah diterima — tak perlu risau, admin akan semak.
+            </div>
             <div id="modalRingkasan" class="text-start bg-light p-3 rounded mb-3 small"></div>
             <p class="text-muted small mb-3">Sila hantar WhatsApp kepada admin untuk pengesahan tempahan.</p>
             <button class="btn btn-success w-100 mb-2" onclick="hantarWhatsApp()">
@@ -219,13 +222,16 @@ async function hantarTempahan() {
     btnHantar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menghantar...';
 
     const jumlah = pilihanSlot.length * HARGA_SLOT;
-    dataHantar = { nama, telefon, tarikh, slot: [...pilihanSlot], jumlah };
+    dataHantar = { nama, telefon, tarikh, slot: [...pilihanSlot], jumlah, adaPendua: false, masaHantar: new Date() };
 
     try {
-        await fetch(SCRIPT_URL, {
+        const response = await fetch(SCRIPT_URL, {
             method: "POST",
             body: JSON.stringify({ nama, telefon, tarikh, masa: pilihanSlot })
         });
+        const result = await response.json();
+        dataHantar.adaPendua = !!result.adaPendua;
+        dataHantar.slotPendua = result.slotPendua || [];
         paparModal();
     } catch (err) {
         console.error("POST Error:", err);
@@ -238,10 +244,12 @@ async function hantarTempahan() {
 }
 
 function paparModal() {
-    const { nama, telefon, tarikh, slot, jumlah } = dataHantar;
+    const { nama, telefon, tarikh, slot, jumlah, adaPendua } = dataHantar;
     const tarikhPapar = new Date(tarikh + "T00:00:00").toLocaleDateString("ms-MY", {
         weekday: "long", year: "numeric", month: "long", day: "numeric"
     });
+
+    document.getElementById("amaranPendua").style.display = adaPendua ? "block" : "none";
 
     document.getElementById("modalRingkasan").innerHTML =
         '<table class="table table-sm table-borderless mb-0">' +
@@ -256,19 +264,28 @@ function paparModal() {
 }
 
 function hantarWhatsApp() {
-    const { nama, telefon, tarikh, slot, jumlah } = dataHantar;
+    const { nama, telefon, tarikh, slot, jumlah, adaPendua, masaHantar } = dataHantar;
     const tarikhPapar = new Date(tarikh + "T00:00:00").toLocaleDateString("ms-MY", {
         weekday: "long", year: "numeric", month: "long", day: "numeric"
     });
+    const masaHantarStr = masaHantar.toLocaleString("ms-MY", {
+        day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
+    });
+
+    const amaranPendua = adaPendua
+        ? "🔁 *PERHATIAN: Kemungkinan hantar semula* — sistem kesan tempahan serupa dihantar baru-baru ini untuk slot yang sama. Tempahan asal mungkin sudah admin terima sebelum ini.\n\n"
+        : "";
 
     const mesej =
+        amaranPendua +
         "Salam, saya ingin tempah Dewan Sivik Atas Tol (DSAT).\n\n" +
         "📋 *Butiran Tempahan:*\n" +
         "👤 Nama: " + nama + "\n" +
         "📞 Telefon: " + telefon + "\n" +
         "📅 Tarikh: " + tarikhPapar + "\n" +
         "⏰ Slot: " + slot.map(format12Jam).join(", ") + "\n" +
-        "💰 Jumlah: RM" + jumlah.toFixed(2) + "\n\n" +
+        "💰 Jumlah: RM" + jumlah.toFixed(2) + "\n" +
+        "🕐 Dihantar: " + masaHantarStr + "\n\n" +
         "Sila sahkan tempahan saya. Maklumat bayaran akan dihantar selepas tempahan disahkan.\n\n" +
         "Terima kasih. 🙏";
 
