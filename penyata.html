@@ -113,7 +113,7 @@ if ('serviceWorker' in navigator) {
                     <input type="number" id="pilihTahun" class="form-control" value="2026">
                 </div>
                 <div class="col-auto d-flex align-items-end">
-                    <button class="btn btn-primary" onclick="muatPenyata()">🔍 View</button>
+                    <button class="btn btn-primary" onclick="muatPenyata()">🔍 Muat</button>
                 </div>
             </div>
 
@@ -263,6 +263,12 @@ const ITEM_LALAI_KELUARAN = [
 let senaraiKemasukan = [];
 let senaraiKeluaran = [];
 
+// Bulatkan kepada 2 titik perpuluhan — elak isu floating-point JS
+// (cth: 1235.5699999999997 disebabkan pengiraan tolak/tambah nombor perpuluhan)
+function bulatkan2(n) {
+    return Math.round((parseFloat(n) || 0) * 100) / 100;
+}
+
 // LOGIN
 function bukaDashboardPenyata() {
     document.getElementById("loginBox").style.display = "none";
@@ -392,7 +398,7 @@ async function autoRefreshSewaHarian() {
     try {
         const response = await fetch(SCRIPT_URL + "?penyata=sewaHarian&bulan=" + bulan + "&tahun=" + tahun);
         const data = await response.json();
-        itemHarian.jumlah = data.total || 0;
+        itemHarian.jumlah = bulatkan2(data.total || 0);
 
         const labelBaru = itemHarian.label.replace(/\s*-\s*\w{3}\d{2,4}$/i, "") +
             "-" + NAMA_BULAN_PENDEK[bulan].toUpperCase() + tahun.toString().slice(-2);
@@ -497,7 +503,7 @@ async function tambahAmaun(item, inputJumlah) {
     }
 
     var jumlahLama = parseFloat(item.jumlah) || 0;
-    item.jumlah = jumlahLama + nilaiTambah;
+    item.jumlah = bulatkan2(jumlahLama + nilaiTambah);
     inputJumlah.value = item.jumlah;
     kiraSemula();
 
@@ -542,7 +548,7 @@ async function fetchItem(item, inputJumlah, inputLabel) {
     try {
         const response = await fetch(SCRIPT_URL + "?penyata=" + endpoint + "&bulan=" + bulanGuna + "&tahun=" + tahunGuna);
         const data = await response.json();
-        item.jumlah = data.total || 0;
+        item.jumlah = bulatkan2(data.total || 0);
         inputJumlah.value = item.jumlah;
 
         // Auto kemaskini label dengan bulan yang digunakan (cth: "-JUL26")
@@ -575,7 +581,7 @@ async function fetchBaki() {
 
         var itemBaki = senaraiKemasukan.find(function(i) { return i.jenis === "baki"; });
         if (itemBaki) {
-            itemBaki.jumlah = data.baki || 0;
+            itemBaki.jumlah = bulatkan2(data.baki || 0);
 
             // Guna nilai dari server HANYA jika sah (nombor 1-12 / tahun sah).
             // Kalau tidak, fallback ke pengiraan tempatan supaya label tak sekali-kali "undefined".
