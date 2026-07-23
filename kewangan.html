@@ -106,10 +106,12 @@ if ('serviceWorker' in navigator) {
 
             <div id="bahagianPenyewa" style="display:none;">
                 <p class="text-muted small mb-2">💡 Isi <strong>Tambahan Slot</strong> jika penyewa guna slot tambahan (9PM–1AM, RM10/slot) bulan ini.</p>
+                <p class="text-muted small mb-2">☑️ Nyahtanda penyewa yang <strong>tak nak</strong> dijana bil bulan ini (cth: dah bayar awal / kes khas).</p>
                 <div class="table-responsive mb-3">
                     <table class="table table-sm table-bordered small" id="tablePenyewa">
                         <thead class="table-success">
                             <tr>
+                                <th style="width:30px;"><input type="checkbox" id="chkSemuaPenyewa" checked onchange="toggleSemuaPenyewa(this)"></th>
                                 <th>Nama</th>
                                 <th>Jenis</th>
                                 <th>Jumlah Asal (RM)</th>
@@ -121,7 +123,7 @@ if ('serviceWorker' in navigator) {
                         <tbody id="bodyPenyewa"></tbody>
                         <tfoot>
                             <tr class="table-success fw-bold">
-                                <td colspan="2">JUMLAH KESELURUHAN</td>
+                                <td colspan="3">JUMLAH KESELURUHAN</td>
                                 <td id="totalAsal">0.00</td>
                                 <td id="totalTambahan">0.00</td>
                                 <td id="totalDiskaun">0.00</td>
@@ -422,6 +424,7 @@ function renderJadualPenyewa() {
         var tr = document.createElement("tr");
         tr.id = "row-" + idx;
         tr.innerHTML =
+            '<td class="text-center"><input type="checkbox" class="chk-row" checked onchange="kiraSemula()"></td>' +
             '<td>' + p.nama + '</td>' +
             '<td><small>' + label + '</small></td>' +
             '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
@@ -468,7 +471,14 @@ function pilihGerai(status) {
     kiraSemula();
 }
 
-// KIRA SEMULA JUMLAH (termasuk Tambahan Slot)
+// TANDA/NYAHTANDA SEMUA PENYEWA SEKALI GUS
+function toggleSemuaPenyewa(chkSemua) {
+    const rows = document.querySelectorAll("#bodyPenyewa .chk-row");
+    rows.forEach(function(chk) { chk.checked = chkSemua.checked; });
+    kiraSemula();
+}
+
+// KIRA SEMULA JUMLAH (termasuk Tambahan Slot) — hanya kira baris yang DITANDA (checkbox dipilih)
 function kiraSemula() {
     const rows = document.querySelectorAll("#bodyPenyewa tr");
     var totalAsal = 0;
@@ -494,10 +504,18 @@ function kiraSemula() {
         if (akhir < 0) akhir = 0;
         tr.querySelector(".jumlah-akhir").innerText = akhir.toFixed(2);
 
-        totalAsal += asalSewa;
-        totalTambahan += tambahanRM;
-        totalDiskaun += diskaun;
-        totalAkhir += akhir;
+        // Hanya baris yang ditanda checkbox disertakan dalam jumlah keseluruhan
+        var chk = tr.querySelector(".chk-row");
+        var ditanda = !chk || chk.checked;
+        tr.classList.toggle("table-secondary", !ditanda);
+        tr.style.opacity = ditanda ? "1" : "0.5";
+
+        if (ditanda) {
+            totalAsal += asalSewa;
+            totalTambahan += tambahanRM;
+            totalDiskaun += diskaun;
+            totalAkhir += akhir;
+        }
     });
 
     document.getElementById("totalAsal").innerText = totalAsal.toFixed(2);
@@ -512,9 +530,13 @@ async function janaBilBulanan() {
     const tahun = parseInt(document.getElementById("pilihTahun").value);
     const rows = document.querySelectorAll("#bodyPenyewa tr");
 
-    // Semak gerai berselektif
+    // Semak gerai berselektif — hanya untuk baris yang DITANDA sahaja
     var adaGerai = false;
-    rows.forEach(function(tr) { if (tr.dataset.jenis === "Gerai Berselektif") adaGerai = true; });
+    rows.forEach(function(tr) {
+        var chk = tr.querySelector(".chk-row");
+        if (chk && !chk.checked) return;
+        if (tr.dataset.jenis === "Gerai Berselektif") adaGerai = true;
+    });
     if (adaGerai && !statusGerai) {
         alert("Sila pilih status Gerai Berselektif (Ada/Tiada Aktiviti) dahulu.");
         return;
@@ -522,6 +544,9 @@ async function janaBilBulanan() {
 
     var penyewaList = [];
     rows.forEach(function(tr) {
+        var chk = tr.querySelector(".chk-row");
+        if (chk && !chk.checked) return; // langkau penyewa yang tak ditanda
+
         var asalSewa = parseFloat(tr.querySelector(".jumlah-asal").innerText) || 0;
         var bilTambahan = parseInt(tr.dataset.tambahanSlot) || 0;
         var tambahanRM = parseFloat(tr.dataset.tambahanRM) || 0;
@@ -542,6 +567,11 @@ async function janaBilBulanan() {
             tambahanSlotRM: tambahanRM
         });
     });
+
+    if (penyewaList.length === 0) {
+        alert("Sila tanda sekurang-kurangnya satu penyewa untuk dijana bil.");
+        return;
+    }
 
     if (!confirm("Jana bil untuk " + penyewaList.length + " penyewa bagi bulan " + NAMA_BULAN[bulan] + " " + tahun + "?")) return;
 
@@ -838,6 +868,15 @@ function renderRekod(senarai) {
             ? '<span class="badge bg-success">Sudah Bayar</span>'
             : '<span class="badge bg-danger">Belum Bayar</span>';
 
+        const dilihatBadge = bil.dilihatPada
+            ? '<span class="badge bg-info text-dark ms-1">👁️ Dilihat: ' + bil.dilihatPada + '</span>'
+            : '<span class="badge bg-light text-muted border ms-1">👁️ Belum dibuka</span>';
+
+        const linkHref = bil.token
+            ? (bil.status === "Sudah Bayar" ? BASE_URL + "resit.html?id=" + bil.token : BASE_URL + "bil.html?id=" + bil.token)
+            : "#";
+        const linkLabel = bil.status === "Sudah Bayar" ? "🧾 Link Resit" : "🔗 Link Bil";
+
         const div = document.createElement("div");
         div.className = "kad-bil";
         div.innerHTML =
@@ -846,6 +885,7 @@ function renderRekod(senarai) {
                 '<small class="text-muted ms-2">Bil #' + bil.noBil + '</small></div>' +
                 '<small class="text-muted">' + bil.timestamp + '</small>' +
             '</div>' +
+            '<div class="mb-2">' + dilihatBadge + '</div>' +
             '<table class="table table-sm table-borderless mb-2 small">' +
                 '<tr><td style="width:100px">👤 Nama</td><td><strong>' + bil.nama + '</strong></td></tr>' +
                 '<tr><td>📌 Jenis</td><td>' + bil.jenis + '</td></tr>' +
@@ -861,22 +901,22 @@ function renderRekod(senarai) {
                     : '') +
             '</table>' +
             '<div class="d-flex gap-2">' +
-                '<button class="btn btn-sm btn-outline-primary flex-fill btnLink">' +
-                    (bil.status === "Sudah Bayar" ? '🧾 Link Resit' : '🔗 Link Bil') +
-                '</button>' +
+                '<a class="btn btn-sm btn-outline-primary flex-fill btnLink" href="' + linkHref + '" target="_blank" rel="noopener">' + linkLabel + '</a>' +
                 '<button class="btn btn-sm btn-success flex-fill btnWA">💬 WA</button>' +
                 (bil.status === "Belum Bayar"
                     ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">✅ Tandakan Bayar</button>'
                     : '<button class="btn btn-sm btn-outline-secondary flex-fill btnBelumBayar">↩️ PAID</button>') +
             '</div>';
 
-        div.querySelector(".btnLink").addEventListener("click", function() {
-            if (!bil.token) { alert("⚠️ Bil ini tiada Token (bil lama). Sila jana semula bil atau jalankan backfillTokenBilSediaAda()."); return; }
-            var link = bil.status === "Sudah Bayar"
-                ? BASE_URL + "resit.html?id=" + bil.token
-                : BASE_URL + "bil.html?id=" + bil.token;
-            window.open(link, "_blank");
-        });
+        // Kalau tiada token (bil lama sebelum ciri Bil Online), sekat klik & beri amaran
+        // (link jadi href="#" di atas, jadi right-click "Copy Link" takkan berguna untuk kes ni sahaja)
+        if (!bil.token) {
+            div.querySelector(".btnLink").addEventListener("click", function(e) {
+                e.preventDefault();
+                alert("⚠️ Bil ini tiada Token (bil lama). Sila jana semula bil atau jalankan backfillTokenBilSediaAda().");
+            });
+        }
+
         div.querySelector(".btnWA").addEventListener("click", function() {
             hantarWABil(bil, bil.bulan, bil.tahun);
         });
