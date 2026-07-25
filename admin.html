@@ -359,12 +359,13 @@ function renderPending(senarai) {
         const tarikhPapar = formatTarikh(item.tarikh);
         const slotPapar = item.slot.map(format12Jam).join(", ");
         const jumlah = item.slot.length * HARGA_SLOT;
+        const barisList = item.barisList || [item.baris]; // keserasian ke belakang
         const div = document.createElement("div");
         div.className = "kad-tempahan";
         div.innerHTML =
             '<div class="d-flex justify-content-between align-items-start mb-2">' +
                 '<div><span class="badge bg-warning text-dark">Pending</span>' +
-                '<small class="text-muted ms-2">#' + item.baris + '</small></div>' +
+                '<small class="text-muted ms-2">#' + item.baris + (barisList.length > 1 ? ' (+' + (barisList.length-1) + ' baris)' : '') + '</small></div>' +
                 '<small class="text-muted">' + item.timestamp + '</small>' +
             '</div>' +
             '<table class="table table-sm table-borderless mb-2 small">' +
@@ -379,10 +380,10 @@ function renderPending(senarai) {
                 '<button class="btn btn-danger btn-sm flex-fill btnTolak">❌ Tolak</button>' +
             '</div>';
         div.querySelector(".btnLulus").addEventListener("click", function() {
-            tindakan(item.baris, "Disahkan", item.nama, item.telefon, item.tarikh, item.slot);
+            tindakan(barisList, "Disahkan", item.nama, item.telefon, item.tarikh, item.slot);
         });
         div.querySelector(".btnTolak").addEventListener("click", function() {
-            tindakan(item.baris, "Ditolak", item.nama, item.telefon, item.tarikh, item.slot);
+            tindakan(barisList, "Ditolak", item.nama, item.telefon, item.tarikh, item.slot);
         });
         container.appendChild(div);
     });
@@ -396,12 +397,13 @@ function renderDisahkan(senarai) {
         const tarikhPapar = formatTarikh(item.tarikh);
         const slotPapar = item.slot.map(format12Jam).join(", ");
         const jumlah = item.slot.length * HARGA_SLOT;
+        const barisList = item.barisList || [item.baris];
         const div = document.createElement("div");
         div.className = "kad-tempahan";
         div.innerHTML =
             '<div class="d-flex justify-content-between align-items-start mb-2">' +
                 '<div><span class="badge bg-success">Disahkan</span>' +
-                '<small class="text-muted ms-2">#' + item.baris + '</small></div>' +
+                '<small class="text-muted ms-2">#' + item.baris + (barisList.length > 1 ? ' (+' + (barisList.length-1) + ' baris)' : '') + '</small></div>' +
                 '<small class="text-muted">' + item.timestamp + '</small>' +
             '</div>' +
             '<table class="table table-sm table-borderless mb-2 small">' +
@@ -413,7 +415,7 @@ function renderDisahkan(senarai) {
             '</table>' +
             '<button class="btn btn-outline-danger btn-sm w-100 btnBatal">🚫 Batal Tempahan</button>';
         div.querySelector(".btnBatal").addEventListener("click", function() {
-            tindakan(item.baris, "Dibatal", item.nama, item.telefon, item.tarikh, item.slot);
+            tindakan(barisList, "Dibatal", item.nama, item.telefon, item.tarikh, item.slot);
         });
         container.appendChild(div);
     });
@@ -547,11 +549,11 @@ function paparModalBlok(terjejas, jenis, tujuan) {
         const mesej =
             "Assalamualaikum " + p.nama + ",\n" +
             "Maaf memaklumkan, tempahan anda pada:\n\n" +
-            "\ud83d\udcc5 Tarikh: " + formatTarikh(p.tarikh) + "\n" +
-            "\u23f0 Slot: " + format12Jam(p.slot) + "\n\n" +
+            "📅 Tarikh: " + formatTarikh(p.tarikh) + "\n" +
+            "⏰ Slot: " + format12Jam(p.slot) + "\n\n" +
             "Telah DIBATALKAN kerana " + sebab + ".\n\n" +
             "Kami mohon maaf atas kesulitan ini.\n" +
-            "Terima kasih. \ud83d\ude4f";
+            "Terima kasih. 🙏";
 
         const btn = document.createElement("button");
         btn.className = "btn btn-success w-100 mb-2";
@@ -566,14 +568,21 @@ function paparModalBlok(terjejas, jenis, tujuan) {
 }
 
 // TINDAKAN LULUS / TOLAK / BATAL
-async function tindakan(baris, status, nama, telefon, tarikh, slot) {
+// TAMBAHAN: barisList kini array — semua baris (slot) dalam satu tempahan
+// dikemaskini SEKALI GUS, bukan cuma baris pertama sahaja (punca bug slot
+// "tertinggal" sebagai Pending walaupun tempahan dah diluluskan admin).
+async function tindakan(barisList, status, nama, telefon, tarikh, slot) {
     const label = { "Disahkan": "meluluskan", "Ditolak": "menolak", "Dibatal": "membatalkan" }[status];
-    if (!confirm("Anda pasti mahu " + label + " tempahan ini?")) return;
+    const bilBaris = Array.isArray(barisList) ? barisList.length : 1;
+    const mesejConfirm = bilBaris > 1
+        ? "Anda pasti mahu " + label + " tempahan ini? (" + bilBaris + " slot akan dikemaskini sekali gus)"
+        : "Anda pasti mahu " + label + " tempahan ini?";
+    if (!confirm(mesejConfirm)) return;
 
     try {
         await fetch(SCRIPT_URL, {
             method: "POST",
-            body: JSON.stringify({ adminTindakan: true, baris: baris, status: status })
+            body: JSON.stringify({ adminTindakan: true, barisSenarai: barisList, status: status })
         });
         dataModal = { status: status, nama: nama, telefon: telefon, tarikh: tarikh, slot: slot };
         paparModalTindakan();
@@ -621,16 +630,16 @@ function paparModalTindakan() {
     "Terima kasih. 🙏",
         "Ditolak":
             "Wsalam " + dataModal.nama + ",\n" +
-            "Maaf, tempahan anda TIDAK DAPAT DILULUSKAN \u274c\n\n" +
-            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
-            "\u23f0 Slot: " + slotPapar + "\n\n" +
-            "Sila hubungi kami untuk maklumat lanjut.\nTerima kasih. \ud83d\ude4f",
+            "Maaf, tempahan anda TIDAK DAPAT DILULUSKAN ❌\n\n" +
+            "📅 Tarikh: " + tarikhPapar + "\n" +
+            "⏰ Slot: " + slotPapar + "\n\n" +
+            "Sila hubungi kami untuk maklumat lanjut.\nTerima kasih. 🙏",
         "Dibatal":
             "Assalamualaikum " + dataModal.nama + ",\n" +
-            "Tempahan anda telah DIBATALKAN \ud83d\udeab\n\n" +
-            "\ud83d\udcc5 Tarikh: " + tarikhPapar + "\n" +
-            "\u23f0 Slot: " + slotPapar + "\n\n" +
-            "Sila hubungi kami untuk tempahan baru.\nTerima kasih. \ud83d\ude4f"
+            "Tempahan anda telah DIBATALKAN 🚫\n\n" +
+            "📅 Tarikh: " + tarikhPapar + "\n" +
+            "⏰ Slot: " + slotPapar + "\n\n" +
+            "Sila hubungi kami untuk tempahan baru.\nTerima kasih. 🙏"
     }[dataModal.status];
 
     const btnContainer = document.getElementById("senaraiBtnWA");
