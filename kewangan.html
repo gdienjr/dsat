@@ -287,6 +287,7 @@ let dataPenyewa = [];
 let statusGerai = "";
 let bilDijana = [];
 let dataBilSemua = [];
+let senaraiBakiLebihan = [];
 
 // LOGIN
 function bukaDashboardKewangan() {
@@ -346,10 +347,15 @@ async function muatPenyewa() {
     statusGerai = "";
 
     try {
-        const response = await fetch(SCRIPT_URL + "?admin=penyewa");
-        const data = await response.json();
+        const [responsePenyewa, responseLebihan] = await Promise.all([
+            fetch(SCRIPT_URL + "?admin=penyewa"),
+            fetch(SCRIPT_URL + "?admin=bakiLebihan")
+        ]);
+        const data = await responsePenyewa.json();
+        const dataLebihan = await responseLebihan.json();
         document.getElementById("loadingPenyewa").style.display = "none";
         dataPenyewa = data.penyewa || [];
+        senaraiBakiLebihan = dataLebihan.senarai || [];
         renderJadualPenyewa();
     } catch (err) {
         document.getElementById("loadingPenyewa").style.display = "none";
@@ -421,11 +427,22 @@ function renderJadualPenyewa() {
             label = p.jenis;
         }
 
+        // Semak baki lebihan cash yang belum digunakan untuk penyewa ni (padan nama + telefon)
+        var telFonBersih = p.telefon.toString().replace(/\D/g, '');
+        var lebihanPenyewa = senaraiBakiLebihan.filter(function(l) {
+            return l.nama.trim().toLowerCase() === p.nama.trim().toLowerCase() &&
+                   l.telefon.replace(/\D/g, '') === telFonBersih;
+        });
+        var jumlahLebihan = lebihanPenyewa.reduce(function(sum, l) { return sum + l.jumlah; }, 0);
+        var badgeLebihan = jumlahLebihan > 0
+            ? ' <span class="badge bg-warning text-dark" title="Baki lebihan cash sebelum ini — auto-isi dalam Diskaun">💰 RM' + jumlahLebihan.toFixed(2) + '</span>'
+            : '';
+
         var tr = document.createElement("tr");
         tr.id = "row-" + idx;
         tr.innerHTML =
             '<td class="text-center"><input type="checkbox" class="chk-row" checked onchange="kiraSemula()"></td>' +
-            '<td>' + p.nama + '</td>' +
+            '<td>' + p.nama + badgeLebihan + '</td>' +
             '<td><small>' + label + '</small></td>' +
             '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
             '<td>' +
@@ -434,7 +451,7 @@ function renderJadualPenyewa() {
                 '<small class="text-muted d-block tambahan-rm">RM0.00</small>' +
             '</td>' +
             '<td><input type="number" class="form-control form-control-sm input-diskaun diskaun-input" ' +
-                'id="diskaun-' + idx + '" value="0" min="0" onchange="kiraSemula()"></td>' +
+                'id="diskaun-' + idx + '" value="' + jumlahLebihan.toFixed(2) + '" min="0" onchange="kiraSemula()"></td>' +
             '<td class="text-end jumlah-akhir">' + jumlahAsal.toFixed(2) + '</td>';
 
         tr.dataset.nama = p.nama;
@@ -444,6 +461,7 @@ function renderJadualPenyewa() {
         tr.dataset.totalSlot = p.totalSlot || 0;
         tr.dataset.tambahanSlot = 0;
         tr.dataset.tambahanRM = 0;
+        tr.dataset.barisLebihan = lebihanPenyewa.map(function(l) { return l.baris; }).join(",");
 
         tbody.appendChild(tr);
     });
@@ -586,6 +604,9 @@ async function janaBilBulanan() {
         const response = await fetch(SCRIPT_URL + "?action=janaBil&data=" + payload);
         const result = await response.json();
         bilDijana = result.bil || [];
+
+        await tandaBakiLebihanDigunakan(rows, bilDijana);
+
         paparModalBil(bilDijana, bulan, tahun);
     } catch (err) {
         console.error(err);
@@ -593,6 +614,32 @@ async function janaBilBulanan() {
     } finally {
         btnJana.disabled = false;
         btnJana.innerHTML = '📄 Jana Bil Bulanan';
+    }
+}
+
+// Tandakan rekod Baki_Lebihan yang telah digunakan (dalam bil yang baru dijana) sebagai "Sudah Guna"
+async function tandaBakiLebihanDigunakan(rows, bilDijanaList) {
+    for (var i = 0; i < rows.length; i++) {
+        var tr = rows[i];
+        var chk = tr.querySelector(".chk-row");
+        if (chk && !chk.checked) continue;
+
+        var barisLebihanStr = tr.dataset.barisLebihan;
+        if (!barisLebihanStr) continue;
+
+        var barisArr = barisLebihanStr.split(",").map(Number);
+        var namaTr = tr.dataset.nama;
+        var bilPadanan = bilDijanaList.find(function(b) { return b.nama === namaTr; });
+        var noBil = bilPadanan ? bilPadanan.noBil : "";
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ gunakanBakiLebihan: true, barisSenarai: barisArr, noBil: noBil })
+            });
+        } catch (err) {
+            console.error("Gagal tanda baki lebihan digunakan:", err);
+        }
     }
 }
 
@@ -923,7 +970,7 @@ function renderRekod(senarai) {
 
         if (bil.status === "Belum Bayar") {
             div.querySelector(".btnBayar").addEventListener("click", function() {
-                bukaPilihKaedahBayaran(bil.baris);
+                bukaPilihKaedahBayaran(bil);
             });
         } else {
             div.querySelector(".btnBelumBayar").addEventListener("click", function() {
@@ -936,7 +983,7 @@ function renderRekod(senarai) {
 }
 
 // PILIH KAEDAH BAYARAN sebelum tandakan "Sudah Bayar" (guna modal sedia ada)
-function bukaPilihKaedahBayaran(baris) {
+function bukaPilihKaedahBayaran(bil) {
     document.getElementById("modalTajuk").innerText = "💰 Pilih Kaedah Bayaran";
     const container = document.getElementById("senaraiAksi");
     container.innerHTML =
@@ -948,14 +995,57 @@ function bukaPilihKaedahBayaran(baris) {
 
     document.getElementById("btnKaedahCash").onclick = function() {
         tutupModal();
-        kemaskiniStatusBil(baris, "Sudah Bayar", "Cash");
+        kemaskiniStatusBil(bil.baris, "Sudah Bayar", "Cash");
+        tanyaBakiLebih(bil);
     };
     document.getElementById("btnKaedahOnline").onclick = function() {
         tutupModal();
-        kemaskiniStatusBil(baris, "Sudah Bayar", "Online Bank/QR");
+        kemaskiniStatusBil(bil.baris, "Sudah Bayar", "Online Bank/QR");
+        tanyaBakiLebih(bil);
     };
 
     document.getElementById("modalOverlay").style.display = "block";
+}
+
+// Tanya (pilihan, boleh skip) sama ada penyewa bayar LEBIH daripada jumlah bil.
+// Cover DUA situasi: (1) lebihan cash tak dapat dikembalikan (tiada duit kecil),
+// (2) penyewa sengaja bayar lebih untuk pendahuluan bil bulan hadapan.
+// Kedua-dua kes: jumlah lebih akan auto-terpapar sebagai Diskaun bila jana bil bulan depan.
+function tanyaBakiLebih(bil) {
+    // Bagi masa modal tutup dulu sebelum prompt muncul (elak bertindih)
+    setTimeout(function() {
+        var input = prompt(
+            "Ada baki LEBIH daripada bil ini? (pilihan, boleh skip)\n\n" +
+            "Contoh situasi:\n" +
+            "• Lebihan cash yang tak dapat dikembalikan (tiada duit kecil)\n" +
+            "• Penyewa sengaja bayar lebih untuk PENDAHULUAN bil bulan hadapan\n\n" +
+            "Jumlah ini akan auto-terpapar sebagai Diskaun bila jana bil bulan depan.\n" +
+            "Kosongkan atau taip 0 jika tiada:", ""
+        );
+        var lebihan = parseFloat(input);
+        if (lebihan && lebihan > 0) {
+            hantarCatatanLebihan(bil.nama, bil.telefon, lebihan, bil.noBil);
+        }
+    }, 300);
+}
+
+// Catat baki lebihan cash ke sheet Baki_Lebihan (akan auto-muncul di tab Jana Bil bulan depan)
+async function hantarCatatanLebihan(nama, telefon, jumlah, noBil) {
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                catatBakiLebihan: true,
+                nama: nama,
+                telefon: telefon,
+                jumlah: jumlah,
+                catatan: "Baki lebih dari bil #" + noBil
+            })
+        });
+        alert("✅ Baki lebihan RM" + jumlah.toFixed(2) + " dicatat untuk " + nama + ". Akan auto-terpapar bila jana bil bulan depan.");
+    } catch (err) {
+        alert("Gagal catat baki lebihan. Sila cuba semula atau catat manual.");
+    }
 }
 
 // KEMASKINI STATUS BIL (kaedah hanya relevan bila status = "Sudah Bayar")
