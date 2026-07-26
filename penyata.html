@@ -130,6 +130,54 @@ if ('serviceWorker' in navigator) {
                 <small class="text-muted">💡 Default: bulan sebelum bulan penyata (biasanya kutipan bulan lepas baru "settle").</small>
             </div>
 
+            <div class="mb-3">
+                <button class="btn btn-outline-dark btn-sm w-100" onclick="toggleKutipanSebenar()">
+                    🔄 Semak Kutipan Sebenar (ikut Tarikh Bayaran — untuk Cash Reconciliation)
+                </button>
+                <div id="bahagianKutipanSebenar" class="border rounded p-3 mt-2" style="display:none;">
+                    <p class="small text-muted mb-2">
+                        💡 Ini kira duit yang <strong>betul-betul diterima</strong> dalam bulan penyata di atas (ikut Tarikh Bayaran sebenar) —
+                        <u>bukan</u> ikut bulan yang bil tu mewakili. Berguna untuk padankan dengan duit fizikal dalam tangan.
+                    </p>
+                    <div id="loadingKutipanSebenar" class="text-center py-2" style="display:none;">
+                        <div class="spinner-border spinner-border-sm text-dark"></div>
+                    </div>
+                    <div id="isiKutipanSebenar" style="display:none;">
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <div class="kad-dashboard">
+                                    <div class="small text-muted">Jumlah</div>
+                                    <div class="fw-bold" id="ksTotal">RM0.00</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="kad-dashboard">
+                                    <div class="small text-muted">💵 Cash</div>
+                                    <div class="fw-bold text-success" id="ksCash">RM0.00</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="kad-dashboard">
+                                    <div class="small text-muted">📱 Online</div>
+                                    <div class="fw-bold text-primary" id="ksOnline">RM0.00</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered small mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Tarikh Bayar</th><th>Nama</th><th>Bil Untuk</th><th>Kaedah</th><th class="text-end">Jumlah</th></tr>
+                                </thead>
+                                <tbody id="bodyKutipanSebenar"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="tiadaKutipanSebenar" class="text-center text-muted small py-2" style="display:none;">
+                        Tiada bayaran direkod dalam bulan ini (ikut tarikh bayaran sebenar).
+                    </div>
+                </div>
+            </div>
+
             <div id="loadingPenyata" class="text-center py-3" style="display:none;">
                 <div class="spinner-border text-success spinner-border-sm"></div>
                 <span class="ms-2 text-muted small">Memuatkan penyata...</span>
@@ -758,6 +806,66 @@ function loadImage(url) {
         img.src = url;
     });
 }
+
+// ================= KUTIPAN SEBENAR (CASH RECONCILIATION) =================
+var kutipanSebenarDibuka = false;
+
+function toggleKutipanSebenar() {
+    kutipanSebenarDibuka = !kutipanSebenarDibuka;
+    document.getElementById("bahagianKutipanSebenar").style.display = kutipanSebenarDibuka ? "block" : "none";
+    if (kutipanSebenarDibuka) muatKutipanSebenar();
+}
+
+async function muatKutipanSebenar() {
+    const bulan = parseInt(document.getElementById("pilihBulan").value);
+    const tahun = parseInt(document.getElementById("pilihTahun").value);
+
+    document.getElementById("loadingKutipanSebenar").style.display = "block";
+    document.getElementById("isiKutipanSebenar").style.display = "none";
+    document.getElementById("tiadaKutipanSebenar").style.display = "none";
+
+    try {
+        const response = await fetch(SCRIPT_URL + "?penyata=kutipanSebenar&bulan=" + bulan + "&tahun=" + tahun);
+        const data = await response.json();
+        document.getElementById("loadingKutipanSebenar").style.display = "none";
+
+        const senarai = data.senarai || [];
+        if (senarai.length === 0) {
+            document.getElementById("tiadaKutipanSebenar").style.display = "block";
+            return;
+        }
+
+        document.getElementById("ksTotal").innerText = "RM" + (data.total || 0).toFixed(2);
+        document.getElementById("ksCash").innerText = "RM" + (data.totalCash || 0).toFixed(2);
+        document.getElementById("ksOnline").innerText = "RM" + (data.totalOnline || 0).toFixed(2);
+
+        const tbody = document.getElementById("bodyKutipanSebenar");
+        tbody.innerHTML = "";
+        senarai.forEach(function(item) {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+                '<td>' + item.tarikhBayaran + '</td>' +
+                '<td>' + item.nama + '</td>' +
+                '<td>' + (NAMA_BULAN_PENDEK[item.bulanBilAsal] || item.bulanBilAsal) + ' ' + item.tahunBilAsal + '</td>' +
+                '<td>' + item.kaedah + '</td>' +
+                '<td class="text-end">RM' + item.jumlah.toFixed(2) + '</td>';
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById("isiKutipanSebenar").style.display = "block";
+    } catch (err) {
+        document.getElementById("loadingKutipanSebenar").style.display = "none";
+        alert("Gagal muatkan kutipan sebenar.");
+    }
+}
+
+// Refresh kutipan sebenar bila bulan/tahun penyata ditukar (kalau bahagian ni sedang dibuka)
+document.getElementById("pilihBulan").addEventListener("change", function() {
+    if (kutipanSebenarDibuka) muatKutipanSebenar();
+});
+document.getElementById("pilihTahun").addEventListener("change", function() {
+    if (kutipanSebenarDibuka) muatKutipanSebenar();
+});
 
 // ================= RINGKASAN TAHUNAN =================
 async function muatRingkasanTahunan() {
