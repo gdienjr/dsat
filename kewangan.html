@@ -911,9 +911,15 @@ function renderRekod(senarai) {
     container.innerHTML = "";
 
     senarai.forEach(function(bil) {
+        const belumLangsai = bil.status === "Belum Bayar" || bil.status === "Bayar Sebahagian";
+        const jumlahDiterima = bil.jumlahDiterima || 0;
+        const baki = bil.status === "Bayar Sebahagian" ? Math.max(bil.jumlahAkhir - jumlahDiterima, 0) : 0;
+
         const statusBadge = bil.status === "Sudah Bayar"
             ? '<span class="badge bg-success">Sudah Bayar</span>'
-            : '<span class="badge bg-danger">Belum Bayar</span>';
+            : bil.status === "Bayar Sebahagian"
+                ? '<span class="badge bg-warning text-dark">Bayar Sebahagian</span>'
+                : '<span class="badge bg-danger">Belum Bayar</span>';
 
         const dilihatBadge = bil.dilihatPada
             ? '<span class="badge bg-info text-dark ms-1">👁️ Dilihat: ' + bil.dilihatPada + '</span>'
@@ -943,17 +949,24 @@ function renderRekod(senarai) {
                 '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + bil.jumlahAkhir.toFixed(2) + '</strong>' +
                     (bil.diskaun > 0 ? ' <small class="text-muted">(Diskaun: RM' + bil.diskaun.toFixed(2) + ')</small>' : '') +
                 '</td></tr>' +
-                (bil.status === "Sudah Bayar" && bil.kaedahBayaran
+                (bil.status === "Bayar Sebahagian"
+                    ? '<tr><td>💵 Diterima</td><td>RM' + jumlahDiterima.toFixed(2) + '</td></tr>' +
+                      '<tr><td>⚠️ Baki Tertunggak</td><td><strong class="text-danger">RM' + baki.toFixed(2) + '</strong></td></tr>'
+                    : '') +
+                ((bil.status === "Sudah Bayar" || bil.status === "Bayar Sebahagian") && bil.kaedahBayaran
                     ? '<tr><td>💳 Kaedah</td><td>' + bil.kaedahBayaran + '</td></tr>'
                     : '') +
             '</table>' +
             '<div class="d-flex gap-2">' +
                 '<a class="btn btn-sm btn-outline-primary flex-fill btnLink" href="' + linkHref + '" target="_blank" rel="noopener">' + linkLabel + '</a>' +
                 '<button class="btn btn-sm btn-success flex-fill btnWA">💬 WA</button>' +
-                (bil.status === "Belum Bayar"
-                    ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">✅ Tandakan Bayar</button>'
+                (belumLangsai
+                    ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">' + (bil.status === "Bayar Sebahagian" ? "➕ Tambah Bayaran" : "✅ Tandakan Bayar") + '</button>'
                     : '<button class="btn btn-sm btn-outline-secondary flex-fill btnBelumBayar">↩️ PAID</button>') +
-            '</div>';
+            '</div>' +
+            (belumLangsai
+                ? '<button class="btn btn-sm btn-link text-muted w-100 mt-1 p-0 btnBelumBayar2">↩️ Tandakan semula sebagai Belum Bayar</button>'
+                : '');
 
         // Kalau tiada token (bil lama sebelum ciri Bil Online), sekat klik & beri amaran
         // (link jadi href="#" di atas, jadi right-click "Copy Link" takkan berguna untuk kes ni sahaja)
@@ -968,9 +981,12 @@ function renderRekod(senarai) {
             hantarWABil(bil, bil.bulan, bil.tahun);
         });
 
-        if (bil.status === "Belum Bayar") {
+        if (belumLangsai) {
             div.querySelector(".btnBayar").addEventListener("click", function() {
                 bukaPilihKaedahBayaran(bil);
+            });
+            div.querySelector(".btnBelumBayar2").addEventListener("click", function() {
+                kemaskiniStatusBil(bil.baris, "Belum Bayar");
             });
         } else {
             div.querySelector(".btnBelumBayar").addEventListener("click", function() {
@@ -983,26 +999,48 @@ function renderRekod(senarai) {
 }
 
 // PILIH KAEDAH BAYARAN sebelum tandakan "Sudah Bayar" (guna modal sedia ada)
+// TAMBAHAN: kotak "Jumlah Diterima" boleh diedit — default jumlah penuh (atau baki
+// tertunggak kalau ni tambahan bayaran untuk bil "Bayar Sebahagian"), tapi admin
+// boleh tukar untuk rekod bayaran sebahagian.
 function bukaPilihKaedahBayaran(bil) {
-    document.getElementById("modalTajuk").innerText = "💰 Pilih Kaedah Bayaran";
+    const bakiSemasa = bil.status === "Bayar Sebahagian"
+        ? Math.max(bil.jumlahAkhir - (bil.jumlahDiterima || 0), 0)
+        : bil.jumlahAkhir;
+
+    document.getElementById("modalTajuk").innerText = "💰 Rekod Bayaran";
     const container = document.getElementById("senaraiAksi");
     container.innerHTML =
-        '<p class="text-muted small mb-3">Bagaimana penyewa membuat bayaran untuk bil ini?</p>' +
+        (bil.status === "Bayar Sebahagian"
+            ? '<p class="text-muted small mb-2">Sudah diterima RM' + (bil.jumlahDiterima || 0).toFixed(2) +
+              ' daripada RM' + bil.jumlahAkhir.toFixed(2) + '. Baki tertunggak: <strong class="text-danger">RM' + bakiSemasa.toFixed(2) + '</strong></p>'
+            : '<p class="text-muted small mb-2">Jumlah bil: <strong>RM' + bil.jumlahAkhir.toFixed(2) + '</strong></p>') +
+        '<div class="mb-3">' +
+            '<label class="form-label fw-semibold small">Jumlah Diterima (RM):</label>' +
+            '<input type="number" step="0.01" min="0" class="form-control" id="inputJumlahDiterima" value="' + bakiSemasa.toFixed(2) + '">' +
+            '<div class="form-text">Tukar jumlah ini jika penyewa bayar sebahagian sahaja.</div>' +
+        '</div>' +
+        '<p class="text-muted small mb-2">Kaedah bayaran:</p>' +
         '<div class="d-flex gap-2 mb-2">' +
             '<button class="btn btn-outline-success flex-fill py-3" id="btnKaedahCash">💵<br>Cash</button>' +
             '<button class="btn btn-outline-primary flex-fill py-3" id="btnKaedahOnline">📱<br>Online Bank / QR</button>' +
         '</div>';
 
-    document.getElementById("btnKaedahCash").onclick = function() {
+    function prosesBayaran(kaedah) {
+        const inputAmaun = parseFloat(document.getElementById("inputJumlahDiterima").value);
+        if (isNaN(inputAmaun) || inputAmaun <= 0) {
+            alert("Sila masukkan jumlah diterima yang sah.");
+            return;
+        }
+        // Jumlah diterima dihantar ialah JUMLAH TERKUMPUL (bukan tambahan sahaja) —
+        // kalau ni top-up bagi bil Bayar Sebahagian, campurkan dengan apa yang dah diterima.
+        const jumlahTerkumpul = (bil.jumlahDiterima || 0) + inputAmaun;
         tutupModal();
-        kemaskiniStatusBil(bil.baris, "Sudah Bayar", "Cash");
-        tanyaBakiLebih(bil);
-    };
-    document.getElementById("btnKaedahOnline").onclick = function() {
-        tutupModal();
-        kemaskiniStatusBil(bil.baris, "Sudah Bayar", "Online Bank/QR");
-        tanyaBakiLebih(bil);
-    };
+        kemaskiniStatusBil(bil.baris, "Sudah Bayar", kaedah, jumlahTerkumpul);
+        if (jumlahTerkumpul >= bil.jumlahAkhir - 0.01) tanyaBakiLebih(bil);
+    }
+
+    document.getElementById("btnKaedahCash").onclick = function() { prosesBayaran("Cash"); };
+    document.getElementById("btnKaedahOnline").onclick = function() { prosesBayaran("Online Bank/QR"); };
 
     document.getElementById("modalOverlay").style.display = "block";
 }
@@ -1049,7 +1087,10 @@ async function hantarCatatanLebihan(nama, telefon, jumlah, noBil) {
 }
 
 // KEMASKINI STATUS BIL (kaedah hanya relevan bila status = "Sudah Bayar")
-async function kemaskiniStatusBil(baris, status, kaedah) {
+// TAMBAHAN: jumlahDiterima (pilihan) — jumlah TERKUMPUL sebenar diterima daripada penyewa.
+// Backend (Code.gs) akan tentukan status akhir "Sudah Bayar" atau "Bayar Sebahagian"
+// berdasarkan perbandingan dengan Jumlah Akhir bil.
+async function kemaskiniStatusBil(baris, status, kaedah, jumlahDiterima) {
     if (status === "Belum Bayar") {
         if (!confirm("Anda pasti mahu menukar semula ke belum bayar?")) return;
     }
@@ -1057,8 +1098,12 @@ async function kemaskiniStatusBil(baris, status, kaedah) {
     try {
         var url = SCRIPT_URL + "?action=kemaskiniStatusBil&baris=" + baris + "&status=" + encodeURIComponent(status);
         if (kaedah) url += "&kaedah=" + encodeURIComponent(kaedah);
+        if (jumlahDiterima !== undefined && jumlahDiterima !== null) url += "&jumlahDiterima=" + encodeURIComponent(jumlahDiterima);
         await fetch(url);
         muatRekod();
+        if (typeof muatDashboard === "function" && document.getElementById("tabDashboard") && document.getElementById("tabDashboard").style.display !== "none") {
+            muatDashboard();
+        }
     } catch (err) {
         alert("Gagal kemaskini status.");
     }
@@ -1099,18 +1144,20 @@ function renderDashboard() {
         patutKutip += b.jumlahAkhir;
         patutBulanan[b.bulan] += b.jumlahAkhir;
 
-        if (b.status === "Sudah Bayar") {
-            sudahKutip += b.jumlahAkhir;
-            kutipanBulanan[b.bulan] += b.jumlahAkhir;
-        } else {
-            belumKutip += b.jumlahAkhir;
-        }
+        // TAMBAHAN: "Bayar Sebahagian" — kira amaun DITERIMA sebagai sudah kutip,
+        // & baki tertunggak sebagai belum kutip (bukan terus dikira penuh sebagai belum bayar).
+        var diterimaBil = b.status === "Sudah Bayar" ? b.jumlahAkhir
+            : b.status === "Bayar Sebahagian" ? (b.jumlahDiterima || 0)
+            : 0;
+        sudahKutip += diterimaBil;
+        belumKutip += (b.jumlahAkhir - diterimaBil);
+        if (diterimaBil > 0) kutipanBulanan[b.bulan] += diterimaBil;
 
         if (!ikutJenis[b.jenis]) ikutJenis[b.jenis] = { bil: 0, jumlah: 0, sudah: 0, belum: 0 };
         ikutJenis[b.jenis].bil++;
         ikutJenis[b.jenis].jumlah += b.jumlahAkhir;
-        if (b.status === "Sudah Bayar") ikutJenis[b.jenis].sudah += b.jumlahAkhir;
-        else ikutJenis[b.jenis].belum += b.jumlahAkhir;
+        ikutJenis[b.jenis].sudah += diterimaBil;
+        ikutJenis[b.jenis].belum += (b.jumlahAkhir - diterimaBil);
     });
 
     const peratus = patutKutip > 0 ? (sudahKutip / patutKutip * 100) : 0;
@@ -1143,7 +1190,7 @@ function renderDashboard() {
     lukisCartaKutipan(kutipanBulanan, patutBulanan);
 
     // Senarai belum bayar
-    const senaraiBelum = senaraiTahun.filter(function(b) { return b.status === "Belum Bayar"; })
+    const senaraiBelum = senaraiTahun.filter(function(b) { return b.status === "Belum Bayar" || b.status === "Bayar Sebahagian"; })
         .sort(function(a, b) { return b.baris - a.baris; });
     const container = document.getElementById("senaraiBelumBayar");
     container.innerHTML = "";
@@ -1151,12 +1198,14 @@ function renderDashboard() {
         container.innerHTML = '<p class="text-muted small text-center py-2">✅ Semua bil tahun ini sudah dibayar.</p>';
     } else {
         senaraiBelum.forEach(function(b) {
+            const baki = b.status === "Bayar Sebahagian" ? Math.max(b.jumlahAkhir - (b.jumlahDiterima || 0), 0) : b.jumlahAkhir;
             const div = document.createElement("div");
             div.className = "d-flex justify-content-between align-items-center border-bottom py-2 small";
             div.innerHTML =
-                '<div><strong>' + b.nama + '</strong><br>' +
+                '<div><strong>' + b.nama + '</strong>' +
+                (b.status === "Bayar Sebahagian" ? ' <span class="badge bg-warning text-dark">Sebahagian</span>' : '') + '<br>' +
                 '<span class="text-muted">' + NAMA_BULAN[b.bulan] + ' ' + b.tahun + ' | ' + b.jenis + '</span></div>' +
-                '<div class="text-danger fw-bold">RM' + b.jumlahAkhir.toFixed(2) + '</div>';
+                '<div class="text-danger fw-bold">RM' + baki.toFixed(2) + '</div>';
             container.appendChild(div);
         });
     }
