@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-    <link rel="manifest" href="manifest-jadual.json">
-<meta name="theme-color" content="#0d6efd">
-<link rel="apple-touch-icon" href="icon-192.png">
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/dsat/sw-jadual.js')
-    .then(function() { console.log('SW Jadual berdaftar'); })
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+    if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/dsat/sw.js')
+    .then(function() { console.log('SW berdaftar'); })
     .catch(function(err) { console.log('SW gagal:', err); });
-}
-</script>
+    }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jadual Tempahan Dewan DSAT</title>
@@ -19,6 +20,7 @@ if ('serviceWorker' in navigator) {
         body { background-color: #f0f2f5; }
         .kad { max-width: 500px; margin: 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
         .btn-slot { min-width: 90px; font-size: 0.85rem; pointer-events: none; cursor: default; }
+        .btn-nav-hari { flex: 0 0 auto; padding: 0.375rem 0.75rem; font-size: 1.1rem; line-height: 1; }
         #loading { display: none; text-align: center; padding: 15px; }
     </style>
 </head>
@@ -30,7 +32,12 @@ if ('serviceWorker' in navigator) {
 
     <div class="mb-3">
         <label class="form-label fw-semibold">Pilih Tarikh:</label>
-        <input type="date" id="tarikh" class="form-control">
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btnHariSebelum" class="btn btn-outline-secondary btn-nav-hari" aria-label="Hari sebelum">‹</button>
+            <input type="date" id="tarikh" class="form-control text-center">
+            <button type="button" id="btnHariSelepas" class="btn btn-outline-secondary btn-nav-hari" aria-label="Hari selepas">›</button>
+        </div>
+        <div id="namaHari" class="text-center text-muted small mt-1 fw-semibold"></div>
     </div>
 
     <div id="loading">
@@ -55,7 +62,7 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbm8diQ8myu7YYU8DTdzHwSH8a9em3iX00nHn327l-NaNX_mzgzKd0vlVZLEv-9lY5/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgf08_SZw5JApLuYBbI7WkymeIs8jbfnB0KEbd50G7RlF0d20Ol2WuEuB_y_3au1Hd/exec";
 
 function format12Jam(masa24) {
     const jam = parseInt(masa24.toString().split(":")[0]);
@@ -65,10 +72,38 @@ function format12Jam(masa24) {
     return (jam - 12) + ":00 PM";
 }
 
-document.getElementById("tarikh").addEventListener("change", async function() {
-    const tarikh = this.value;
+const NAMA_HARI = ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"];
+
+// TAMBAHAN: papar nama hari di bawah medan tarikh (cth: "Isnin")
+function paparNamaHari(tarikhStr) {
+    const elNamaHari = document.getElementById("namaHari");
+    if (!tarikhStr) { elNamaHari.textContent = ""; return; }
+    const d = new Date(tarikhStr + "T00:00:00");
+    elNamaHari.textContent = NAMA_HARI[d.getDay()];
+}
+
+// TAMBAHAN: gerak tarikh +1/-1 hari tanpa perlu buka date picker setiap kali
+function gerakHari(delta) {
+    const inputTarikh = document.getElementById("tarikh");
+    const semasa = inputTarikh.value ? new Date(inputTarikh.value + "T00:00:00") : new Date();
+    semasa.setDate(semasa.getDate() + delta);
+    const yyyy = semasa.getFullYear();
+    const mm = String(semasa.getMonth() + 1).padStart(2, "0");
+    const dd = String(semasa.getDate()).padStart(2, "0");
+    inputTarikh.value = yyyy + "-" + mm + "-" + dd;
+    semakJadual();
+}
+
+document.getElementById("btnHariSebelum").addEventListener("click", function() { gerakHari(-1); });
+document.getElementById("btnHariSelepas").addEventListener("click", function() { gerakHari(1); });
+
+document.getElementById("tarikh").addEventListener("change", semakJadual);
+
+async function semakJadual() {
+    const tarikh = document.getElementById("tarikh").value;
     if (!tarikh) return;
 
+    paparNamaHari(tarikh);
     document.getElementById("loading").style.display = "block";
     document.getElementById("bahagianSlot").style.display = "none";
     document.getElementById("slotContainer").innerHTML = "";
@@ -83,7 +118,7 @@ document.getElementById("tarikh").addEventListener("change", async function() {
         document.getElementById("loading").style.display = "none";
         alert("Gagal muatkan jadual. Sila cuba semula.");
     }
-});
+}
 
 function renderSlot(data) {
     const container = document.getElementById("slotContainer");
