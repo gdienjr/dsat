@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+📋 <!DOCTYPE html>
 <html lang="ms">
 <head>
     <script>
@@ -843,9 +843,12 @@ async function muatKutipanSebenar() {
         tbody.innerHTML = "";
         senarai.forEach(function(item) {
             const tr = document.createElement("tr");
+            const badgeSebahagian = item.sebahagian
+                ? ' <span class="badge bg-warning text-dark" style="font-size:0.65rem;" title="Bil belum langsai penuh — amaun ini hanya sebahagian yang telah diterima">Sebahagian</span>'
+                : '';
             tr.innerHTML =
                 '<td>' + item.tarikhBayaran + '</td>' +
-                '<td>' + item.nama + '</td>' +
+                '<td>' + item.nama + badgeSebahagian + '</td>' +
                 '<td>' + (NAMA_BULAN_PENDEK[item.bulanBilAsal] || item.bulanBilAsal) + ' ' + item.tahunBilAsal + '</td>' +
                 '<td>' + item.kaedah + '</td>' +
                 '<td class="text-end">RM' + item.jumlah.toFixed(2) + '</td>';
