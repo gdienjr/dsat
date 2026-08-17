@@ -912,6 +912,9 @@ function renderRekod(senarai) {
 
     senarai.forEach(function(bil) {
         const belumLangsai = bil.status === "Belum Bayar" || bil.status === "Bayar Sebahagian";
+        // Butang "Tandakan semula sebagai Belum Bayar" (undo) hanya masuk akal untuk bil yang
+        // SUDAH ada rekod bayaran (penuh atau sebahagian) — bukan bil yang memang belum dibayar lagi.
+        const sudahAdaBayaran = bil.status === "Sudah Bayar" || bil.status === "Bayar Sebahagian";
         const jumlahDiterima = bil.jumlahDiterima || 0;
         const baki = bil.status === "Bayar Sebahagian" ? Math.max(bil.jumlahAkhir - jumlahDiterima, 0) : 0;
 
@@ -962,9 +965,9 @@ function renderRekod(senarai) {
                 '<button class="btn btn-sm btn-success flex-fill btnWA">💬 WA</button>' +
                 (belumLangsai
                     ? '<button class="btn btn-sm btn-outline-success flex-fill btnBayar">' + (bil.status === "Bayar Sebahagian" ? "➕ Tambah Bayaran" : "✅ Tandakan Bayar") + '</button>'
-                    : '<button class="btn btn-sm btn-outline-secondary flex-fill btnBelumBayar">↩️ PAID</button>') +
+                    : '') +
             '</div>' +
-            (belumLangsai
+            (sudahAdaBayaran
                 ? '<button class="btn btn-sm btn-link text-muted w-100 mt-1 p-0 btnBelumBayar2">↩️ Tandakan semula sebagai Belum Bayar</button>'
                 : '');
 
@@ -985,12 +988,12 @@ function renderRekod(senarai) {
             div.querySelector(".btnBayar").addEventListener("click", function() {
                 bukaPilihKaedahBayaran(bil);
             });
+        }
+        if (sudahAdaBayaran) {
             div.querySelector(".btnBelumBayar2").addEventListener("click", function() {
-                kemaskiniStatusBil(bil.baris, "Belum Bayar");
-            });
-        } else {
-            div.querySelector(".btnBelumBayar").addEventListener("click", function() {
-                kemaskiniStatusBil(bil.baris, "Belum Bayar");
+                if (confirm("Tandakan semula bil ini sebagai Belum Bayar? Rekod bayaran & jumlah diterima akan dikosongkan.")) {
+                    kemaskiniStatusBil(bil.baris, "Belum Bayar");
+                }
             });
         }
 
