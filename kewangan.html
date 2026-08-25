@@ -399,7 +399,8 @@ function renderJadualPenyewa() {
                 jenis: p.jenis.trim(),
                 kadar: p.kadar,
                 totalSlot: 0,
-                jumlahAsal: 0
+                jumlahAsal: 0,
+                diskaunTetap: 0
             };
         }
 
@@ -410,6 +411,11 @@ function renderJadualPenyewa() {
             var slotBulan = bilHari * p.slot;
             penyewaUnik[key].totalSlot += slotBulan;
             penyewaUnik[key].jumlahAsal += slotBulan * p.kadar;
+            // Diskaun tetap per sesi (cth: RM5 setiap sesi Jumaat) — dari lajur
+            // DiskaunSesi dalam Penyewa_Tetap, dikira ikut bilangan hari tu dalam bulan.
+            if (p.diskaunSesi) {
+                penyewaUnik[key].diskaunTetap += bilHari * p.diskaunSesi;
+            }
         } else if (jenis === "Fix Bulanan") {
             penyewaUnik[key].jumlahAsal = p.kadar;
         } else if (jenis === "Gerai Tetap") {
@@ -457,13 +463,19 @@ function renderJadualPenyewa() {
             ? ' <span class="badge bg-info text-dark" title="Off penyewa tetap bulan ini — auto-isi dalam Diskaun">🚪 Off ' + offPenyewa.length + 'x (RM' + jumlahOffDiskaun.toFixed(2) + ')</span>'
             : '';
 
-        var diskaunAuto = jumlahLebihan + jumlahOffDiskaun;
+        // Diskaun tetap per sesi (cth: RM5/sesi) — auto-isi dalam Diskaun
+        var jumlahDiskaunTetap = p.diskaunTetap || 0;
+        var badgeDiskaunTetap = jumlahDiskaunTetap > 0
+            ? ' <span class="badge bg-secondary" title="Diskaun tetap per sesi — auto-isi dalam Diskaun">🏷️ RM' + jumlahDiskaunTetap.toFixed(2) + '</span>'
+            : '';
+
+        var diskaunAuto = jumlahLebihan + jumlahOffDiskaun + jumlahDiskaunTetap;
 
         var tr = document.createElement("tr");
         tr.id = "row-" + idx;
         tr.innerHTML =
             '<td class="text-center"><input type="checkbox" class="chk-row" checked onchange="kiraSemula()"></td>' +
-            '<td>' + p.nama + badgeLebihan + badgeOff + '</td>' +
+            '<td>' + p.nama + badgeLebihan + badgeOff + badgeDiskaunTetap + '</td>' +
             '<td><small>' + label + '</small></td>' +
             '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
             '<td>' +
