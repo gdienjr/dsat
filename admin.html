@@ -188,10 +188,9 @@ if ('serviceWorker' in navigator) {
             <div class="border rounded p-3 mb-4 bg-light">
                 <h6 class="fw-bold mb-3">🚪 Tandakan Off Penyewa Tetap</h6>
                 <p class="small text-muted mb-3">
-                    Penyewa tetap dibenarkan OFF <strong>sekali sebulan</strong>, dengan syarat
-                    memberi notis <strong>sekurang-kurangnya 7 jam</strong> sebelum slot bermula.
-                    Sistem akan semak kedua-dua syarat ini secara automatik sebelum slot dibuka
-                    untuk tempahan awam.
+                    Penyewa tetap dibenarkan OFF <strong>sekali sebulan</strong>. Sistem akan
+                    beri amaran jika notis kurang daripada 7 jam sebelum slot bermula, tetapi
+                    <strong>admin ada budi bicara</strong> untuk tetap meluluskan atau membatalkannya.
                 </p>
 
                 <div class="mb-3">
@@ -812,8 +811,8 @@ function kemaskiniPreviewCuti() {
         const slotDatetime = new Date(tarikh + "T" + jamMula.toString().padStart(2, '0') + ":00:00");
         const jamNotis = (slotDatetime.getTime() - new Date().getTime()) / (1000 * 60 * 60);
         if (jamNotis < 7) {
-            preview.className = "alert alert-danger small py-2";
-            preview.innerText = "⚠️ Notis kurang daripada 7 jam sebelum slot bermula (baki " + jamNotis.toFixed(1) + " jam). Tidak boleh diproses.";
+            preview.className = "alert alert-warning small py-2";
+            preview.innerText = "⚠️ Notis singkat — baki " + jamNotis.toFixed(1) + " jam sahaja sebelum slot bermula. Slot " + slotPapar + " pada " + formatTarikh(tarikh) + " tetap boleh dibuka jika admin nak teruskan.";
         } else {
             preview.className = "alert alert-info small py-2";
             preview.innerText = "Slot " + slotPapar + " pada " + formatTarikh(tarikh) + " akan dibuka untuk tempahan awam (Kosong) jika disahkan.";
@@ -831,7 +830,29 @@ async function tandakanOff() {
     if (!baris) { alert("Sila pilih penyewa."); return; }
     if (!tarikh) { alert("Sila pilih tarikh."); return; }
 
-    if (!confirm("Sahkan penyewa ini OFF pada " + formatTarikh(tarikh) + "? Slot akan dibuka untuk tempahan awam.")) return;
+    const p = senaraiPenyewaCuti.find(x => x.baris == baris);
+    if (p) {
+        const d = new Date(tarikh + "T00:00:00");
+        const namaHari = ["Ahad","Isnin","Selasa","Rabu","Khamis","Jumaat","Sabtu"][d.getDay()];
+        if (namaHari !== p.hari) {
+            alert("⚠️ Tarikh yang dipilih ialah hari " + namaHari + ", tetapi " + p.nama + " tetap pada hari " + p.hari + ". Sila pilih tarikh yang betul.");
+            return;
+        }
+        const jamMula = parseInt(p.jamMula.split(":")[0]);
+        const slotDatetime = new Date(tarikh + "T" + jamMula.toString().padStart(2, '0') + ":00:00");
+        const jamNotis = (slotDatetime.getTime() - new Date().getTime()) / (1000 * 60 * 60);
+        if (jamNotis < 7) {
+            const teruskan = confirm(
+                "⚠️ Notis singkat — baki " + jamNotis.toFixed(1) + " jam sahaja sebelum slot bermula (kurang daripada 7 jam).\n\n" +
+                "Admin diberi budi bicara untuk lulus walaupun notis singkat. Teruskan tandakan OFF untuk " + p.nama + " pada " + formatTarikh(tarikh) + "?"
+            );
+            if (!teruskan) return;
+        } else {
+            if (!confirm("Sahkan " + p.nama + " OFF pada " + formatTarikh(tarikh) + "? Slot akan dibuka untuk tempahan awam.")) return;
+        }
+    } else {
+        if (!confirm("Sahkan penyewa ini OFF pada " + formatTarikh(tarikh) + "? Slot akan dibuka untuk tempahan awam.")) return;
+    }
 
     try {
         const response = await fetch(SCRIPT_URL, {
