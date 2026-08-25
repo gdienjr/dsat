@@ -288,6 +288,7 @@ let statusGerai = "";
 let bilDijana = [];
 let dataBilSemua = [];
 let senaraiBakiLebihan = [];
+let senaraiCutiPenyewa = [];
 
 // LOGIN
 function bukaDashboardKewangan() {
@@ -347,15 +348,18 @@ async function muatPenyewa() {
     statusGerai = "";
 
     try {
-        const [responsePenyewa, responseLebihan] = await Promise.all([
+        const [responsePenyewa, responseLebihan, responseCuti] = await Promise.all([
             fetch(SCRIPT_URL + "?admin=penyewa"),
-            fetch(SCRIPT_URL + "?admin=bakiLebihan")
+            fetch(SCRIPT_URL + "?admin=bakiLebihan"),
+            fetch(SCRIPT_URL + "?admin=cutiPenyewa")
         ]);
         const data = await responsePenyewa.json();
         const dataLebihan = await responseLebihan.json();
+        const dataCuti = await responseCuti.json();
         document.getElementById("loadingPenyewa").style.display = "none";
         dataPenyewa = data.penyewa || [];
         senaraiBakiLebihan = dataLebihan.senarai || [];
+        senaraiCutiPenyewa = dataCuti.cuti || [];
         renderJadualPenyewa();
     } catch (err) {
         document.getElementById("loadingPenyewa").style.display = "none";
@@ -438,11 +442,28 @@ function renderJadualPenyewa() {
             ? ' <span class="badge bg-warning text-dark" title="Baki lebihan cash sebelum ini — auto-isi dalam Diskaun">💰 RM' + jumlahLebihan.toFixed(2) + '</span>'
             : '';
 
+        // Semak rekod OFF penyewa tetap untuk bulan/tahun yang dipilih (padan nama + telefon)
+        // — setiap rekod off dikira sebagai diskaun automatik (slot yang dibuka x kadar)
+        var offPenyewa = senaraiCutiPenyewa.filter(function(c) {
+            if (c.nama.trim().toLowerCase() !== p.nama.trim().toLowerCase() ||
+                c.telefon.replace(/\D/g, '') !== telFonBersih) return false;
+            var cd = new Date(c.tarikh + "T00:00:00");
+            return (cd.getMonth() + 1) === bulan && cd.getFullYear() === tahun;
+        });
+        var jumlahOffDiskaun = offPenyewa.reduce(function(sum, c) {
+            return sum + (c.slot.length * p.kadar);
+        }, 0);
+        var badgeOff = offPenyewa.length > 0
+            ? ' <span class="badge bg-info text-dark" title="Off penyewa tetap bulan ini — auto-isi dalam Diskaun">🚪 Off ' + offPenyewa.length + 'x (RM' + jumlahOffDiskaun.toFixed(2) + ')</span>'
+            : '';
+
+        var diskaunAuto = jumlahLebihan + jumlahOffDiskaun;
+
         var tr = document.createElement("tr");
         tr.id = "row-" + idx;
         tr.innerHTML =
             '<td class="text-center"><input type="checkbox" class="chk-row" checked onchange="kiraSemula()"></td>' +
-            '<td>' + p.nama + badgeLebihan + '</td>' +
+            '<td>' + p.nama + badgeLebihan + badgeOff + '</td>' +
             '<td><small>' + label + '</small></td>' +
             '<td class="text-end jumlah-asal">' + jumlahAsal.toFixed(2) + '</td>' +
             '<td>' +
@@ -451,7 +472,7 @@ function renderJadualPenyewa() {
                 '<small class="text-muted d-block tambahan-rm">RM0.00</small>' +
             '</td>' +
             '<td><input type="number" class="form-control form-control-sm input-diskaun diskaun-input" ' +
-                'id="diskaun-' + idx + '" value="' + jumlahLebihan.toFixed(2) + '" min="0" onchange="kiraSemula()"></td>' +
+                'id="diskaun-' + idx + '" value="' + diskaunAuto.toFixed(2) + '" min="0" onchange="kiraSemula()"></td>' +
             '<td class="text-end jumlah-akhir">' + jumlahAsal.toFixed(2) + '</td>';
 
         tr.dataset.nama = p.nama;

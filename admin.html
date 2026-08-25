@@ -75,6 +75,11 @@ if ('serviceWorker' in navigator) {
                     🚫 Blok Khas
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="tukarTab('cuti')" href="#">
+                    🚪 Off Penyewa
+                </a>
+            </li>
         </ul>
 
         <!-- Tab Pending -->
@@ -175,6 +180,48 @@ if ('serviceWorker' in navigator) {
                 <p>📭 Tiada blok khas ditetapkan.</p>
             </div>
             <div id="senaraiBlok"></div>
+        </div>
+
+        <!-- Tab Off Penyewa Tetap -->
+        <div id="tabCuti" style="display:none;">
+
+            <div class="border rounded p-3 mb-4 bg-light">
+                <h6 class="fw-bold mb-3">🚪 Tandakan Off Penyewa Tetap</h6>
+                <p class="small text-muted mb-3">
+                    Penyewa tetap dibenarkan OFF <strong>sekali sebulan</strong>, dengan syarat
+                    memberi notis <strong>sekurang-kurangnya 7 jam</strong> sebelum slot bermula.
+                    Sistem akan semak kedua-dua syarat ini secara automatik sebelum slot dibuka
+                    untuk tempahan awam.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Pilih Penyewa Tetap:</label>
+                    <select id="pilihPenyewaCuti" class="form-select">
+                        <option value="">-- Pilih Penyewa --</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tarikh Off:</label>
+                    <input type="date" id="tarikhCuti" class="form-control" style="max-width:220px;">
+                </div>
+
+                <div id="previewCuti" class="alert alert-info small py-2" style="display:none;"></div>
+
+                <button class="btn btn-warning w-100" onclick="tandakanOff()">
+                    🚪 Tandakan Off &amp; Buka Slot
+                </button>
+            </div>
+
+            <h6 class="fw-bold mb-3">📋 Senarai Off Penyewa Tetap</h6>
+            <div id="loadingCuti" class="text-center py-4" style="display:none;">
+                <div class="spinner-border text-warning"></div>
+                <p class="mt-2 text-muted small">Memuatkan data...</p>
+            </div>
+            <div id="tiadaCuti" class="text-center py-4 text-muted" style="display:none;">
+                <p>📭 Tiada rekod off penyewa tetap.</p>
+            </div>
+            <div id="senaraiCuti"></div>
         </div>
 
         <!-- Pemisah -->
@@ -282,14 +329,17 @@ function tukarTab(tab) {
     document.getElementById("tabPending").style.display = tab === "pending" ? "block" : "none";
     document.getElementById("tabDisahkan").style.display = tab === "disahkan" ? "block" : "none";
     document.getElementById("tabBlok").style.display = tab === "blok" ? "block" : "none";
+    document.getElementById("tabCuti").style.display = tab === "cuti" ? "block" : "none";
 
     const links = document.querySelectorAll("#tabMenu .nav-link");
     links[0].classList.toggle("active", tab === "pending");
     links[1].classList.toggle("active", tab === "disahkan");
     links[2].classList.toggle("active", tab === "blok");
+    links[3].classList.toggle("active", tab === "cuti");
 
     if (tab === "disahkan") muatDisahkan();
     if (tab === "blok") muatBlok();
+    if (tab === "cuti") { muatPenyewaDropdown(); muatSenaraiCuti(); }
 }
 
 // MUAT PENDING
@@ -711,6 +761,156 @@ function renderSlotView(data) {
 
 function tutupModal() {
     document.getElementById("modalOverlay").style.display = "none";
+}
+
+// ===== OFF PENYEWA TETAP =====
+let senaraiPenyewaCuti = [];
+
+// MUAT DROPDOWN PENYEWA TETAP
+async function muatPenyewaDropdown() {
+    const select = document.getElementById("pilihPenyewaCuti");
+    select.innerHTML = '<option value="">-- Pilih Penyewa --</option>';
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=penyewa");
+        const data = await response.json();
+        senaraiPenyewaCuti = data.penyewa || [];
+        senaraiPenyewaCuti.forEach(function(p) {
+            const opt = document.createElement("option");
+            opt.value = p.baris;
+            opt.innerText = p.nama + " — " + p.hari + ", " + format12Jam(p.jamMula) + " (" + p.slot + " slot)";
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        alert("Gagal muatkan senarai penyewa tetap.");
+    }
+}
+
+// PRATONTON SLOT YANG AKAN DIBUKA (semakan awal di frontend; semakan rasmi tetap di backend)
+function kemaskiniPreviewCuti() {
+    const baris = document.getElementById("pilihPenyewaCuti").value;
+    const tarikh = document.getElementById("tarikhCuti").value;
+    const preview = document.getElementById("previewCuti");
+
+    if (!baris || !tarikh) { preview.style.display = "none"; return; }
+
+    const p = senaraiPenyewaCuti.find(x => x.baris == baris);
+    if (!p) { preview.style.display = "none"; return; }
+
+    const d = new Date(tarikh + "T00:00:00");
+    const namaHari = ["Ahad","Isnin","Selasa","Rabu","Khamis","Jumaat","Sabtu"][d.getDay()];
+    const jamMula = parseInt(p.jamMula.split(":")[0]);
+    let slotList = [];
+    for (let h = jamMula; h < jamMula + p.slot; h++) {
+        slotList.push((h % 24).toString().padStart(2, '0') + ":00");
+    }
+    const slotPapar = slotList.map(format12Jam).join(", ");
+
+    if (namaHari !== p.hari) {
+        preview.className = "alert alert-danger small py-2";
+        preview.innerText = "⚠️ Tarikh yang dipilih ialah hari " + namaHari + ", tetapi " + p.nama + " tetap pada hari " + p.hari + ". Sila pilih tarikh yang betul.";
+    } else {
+        const slotDatetime = new Date(tarikh + "T" + jamMula.toString().padStart(2, '0') + ":00:00");
+        const jamNotis = (slotDatetime.getTime() - new Date().getTime()) / (1000 * 60 * 60);
+        if (jamNotis < 7) {
+            preview.className = "alert alert-danger small py-2";
+            preview.innerText = "⚠️ Notis kurang daripada 7 jam sebelum slot bermula (baki " + jamNotis.toFixed(1) + " jam). Tidak boleh diproses.";
+        } else {
+            preview.className = "alert alert-info small py-2";
+            preview.innerText = "Slot " + slotPapar + " pada " + formatTarikh(tarikh) + " akan dibuka untuk tempahan awam (Kosong) jika disahkan.";
+        }
+    }
+    preview.style.display = "block";
+}
+document.getElementById("pilihPenyewaCuti").addEventListener("change", kemaskiniPreviewCuti);
+document.getElementById("tarikhCuti").addEventListener("change", kemaskiniPreviewCuti);
+
+// TANDAKAN OFF
+async function tandakanOff() {
+    const baris = document.getElementById("pilihPenyewaCuti").value;
+    const tarikh = document.getElementById("tarikhCuti").value;
+    if (!baris) { alert("Sila pilih penyewa."); return; }
+    if (!tarikh) { alert("Sila pilih tarikh."); return; }
+
+    if (!confirm("Sahkan penyewa ini OFF pada " + formatTarikh(tarikh) + "? Slot akan dibuka untuk tempahan awam.")) return;
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ tandakanCutiPenyewa: true, barisPenyewa: baris, tarikh: tarikh })
+        });
+        const result = await response.json();
+        if (!result.berjaya) {
+            alert("❌ " + result.mesej);
+            return;
+        }
+        alert("✅ " + result.mesej);
+        document.getElementById("pilihPenyewaCuti").value = "";
+        document.getElementById("tarikhCuti").value = "";
+        document.getElementById("previewCuti").style.display = "none";
+        muatSenaraiCuti();
+    } catch (err) {
+        console.error(err);
+        alert("Gagal tandakan off. Sila cuba semula.");
+    }
+}
+
+// MUAT SENARAI OFF
+async function muatSenaraiCuti() {
+    document.getElementById("loadingCuti").style.display = "block";
+    document.getElementById("senaraiCuti").innerHTML = "";
+    document.getElementById("tiadaCuti").style.display = "none";
+    try {
+        const response = await fetch(SCRIPT_URL + "?admin=cutiPenyewa");
+        const data = await response.json();
+        document.getElementById("loadingCuti").style.display = "none";
+        const senarai = data.cuti || [];
+        if (senarai.length === 0) { document.getElementById("tiadaCuti").style.display = "block"; return; }
+        renderCuti(senarai);
+    } catch (err) {
+        document.getElementById("loadingCuti").style.display = "none";
+        alert("Gagal muatkan senarai off.");
+    }
+}
+
+// RENDER SENARAI OFF
+function renderCuti(senarai) {
+    const container = document.getElementById("senaraiCuti");
+    container.innerHTML = "";
+    senarai.forEach(function(item) {
+        const tarikhPapar = formatTarikh(item.tarikh);
+        const slotPapar = item.slot.map(format12Jam).join(", ");
+        const div = document.createElement("div");
+        div.className = "kad-tempahan";
+        div.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                '<span class="badge bg-warning text-dark">🚪 Off</span>' +
+                '<small class="text-muted">#' + item.baris + '</small>' +
+            '</div>' +
+            '<table class="table table-sm table-borderless mb-2 small">' +
+                '<tr><td style="width:100px">👤 Nama</td><td><strong>' + item.nama + '</strong></td></tr>' +
+                '<tr><td>📅 Tarikh</td><td><strong>' + tarikhPapar + '</strong></td></tr>' +
+                '<tr><td>⏰ Slot Dibuka</td><td><strong>' + slotPapar + '</strong></td></tr>' +
+            '</table>' +
+            '<button class="btn btn-outline-danger btn-sm w-100 btnPadamCuti">🗑️ Padam Rekod</button>';
+        div.querySelector(".btnPadamCuti").addEventListener("click", function() {
+            padamCuti(item.baris);
+        });
+        container.appendChild(div);
+    });
+}
+
+// PADAM REKOD OFF
+async function padamCuti(baris) {
+    if (!confirm("Padam rekod off ini? Slot akan kembali tertutup semula (Penyewa Tetap).")) return;
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ padamCutiPenyewa: true, baris: baris })
+        });
+        muatSenaraiCuti();
+    } catch (err) {
+        alert("Gagal padam rekod.");
+    }
 }
 </script>
 </body>
