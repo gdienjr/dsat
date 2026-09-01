@@ -1143,11 +1143,8 @@ function bukaPopupResit(bil, statusAkhir) {
         var noWA = tel.startsWith("60") ? tel : (tel.startsWith("0") ? "6" + tel : "60" + tel);
         const namaBulan = NAMA_BULAN[bil.bulan];
         const mesej = statusAkhir === "Sudah Bayar"
-            ? ("Terima kasih atas bayaran sewa " + namaBulan + " " + bil.tahun +
-               " (No. Bil " + bil.noBil + "). Berikut resit rasmi anda:\n" + linkResit + "\n\nTerima kasih. 🙏")
-            : ("Terima kasih atas bayaran sewa " + namaBulan + " " + bil.tahun +
-               " (No. Bil " + bil.noBil + "). Masih ada baki tertunggak — sila semak & selesaikan melalui pautan berikut:\n" +
-               linkResit + "\n\nTerima kasih. 🙏");
+            ? (bil.nama + ", resit bayaran sewa " + namaBulan + " " + bil.tahun + " (Bil " + bil.noBil + "):\n" + linkResit + "\n\nTerima kasih.")
+            : (bil.nama + ", bayaran sewa " + namaBulan + " " + bil.tahun + " (Bil " + bil.noBil + ") diterima. Baki tertunggak, sila semak:\n" + linkResit + "\n\nTerima kasih.");
         window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
     };
 
