@@ -168,7 +168,7 @@ if ('serviceWorker' in navigator) {
                         <option value="11">November</option>
                         <option value="12">Disember</option>
                     </select>
-                    <input type="number" id="filterTahunRekod" class="form-control form-control-sm" style="width:90px;" placeholder="Tahun" value="2026">
+                    <input type="number" id="filterTahunRekod" class="form-control form-control-sm" style="width:90px;" placeholder="Tahun">
                 </div>
                 <button class="btn btn-outline-primary btn-sm" onclick="muatRekod()">🔄 Refresh</button>
             </div>
@@ -299,6 +299,14 @@ function bukaDashboardKewangan() {
     document.getElementById("pilihBulan").value = kini.getMonth() + 1;
     document.getElementById("pilihTahun").value = kini.getFullYear();
     document.getElementById("dashboardTahun").value = kini.getFullYear();
+
+    // Default filter Rekod Bil = SATU BULAN SEBELUM bulan semasa (cth: sekarang
+    // September -> default Ogos). Bulan semasa jarang siap diproses lagi bila tab dibuka.
+    let bulanLepas = kini.getMonth(); // getMonth() 0-indexed = bulan lepas dalam format 1-indexed
+    let tahunBulanLepas = kini.getFullYear();
+    if (bulanLepas === 0) { bulanLepas = 12; tahunBulanLepas -= 1; } // Januari -> Disember tahun lepas
+    document.getElementById("filterBulanRekod").value = bulanLepas;
+    document.getElementById("filterTahunRekod").value = tahunBulanLepas;
 }
 
 function semakPassword() {
