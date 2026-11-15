@@ -106,6 +106,41 @@
   .detail-table td { padding: 5px 0; vertical-align: top; }
   .detail-table td:first-child { color: #777; width: 42%; }
   .detail-table td:last-child { text-align: right; font-weight: 600; color: #222; }
+  .jadual-box {
+    border: 1px solid #e6e2d8;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .jadual-box .jadual-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dsat-navy-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+  }
+  .jadual-box .jadual-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+    border-bottom: 1px dashed #eee;
+  }
+  .jadual-box .jadual-row:last-child { border-bottom: none; }
+  .jadual-box .cuti-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    background: #fdf3e3;
+    color: #7a5b12;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 8px;
+  }
+  .jadual-box .cuti-row strong { color: #7a5b12; }
+  .jadual-box .jadual-hari { color: #777; }
+  .jadual-box .jadual-masa { font-weight: 600; color: #222; }
   .breakdown {
     background: var(--dsat-paper);
     border-radius: 10px;
@@ -229,6 +264,11 @@
       <tr><td>Jenis Sewaan</td><td id="fJenis">-</td></tr>
     </table>
 
+    <div id="jadualBox" class="jadual-box d-none">
+      <div class="jadual-title">Jadual Tempahan</div>
+      <div id="jadualList"></div>
+    </div>
+
     <div class="breakdown">
       <div class="row-line"><span>Jumlah Asal</span><span id="fJumlahAsal">RM 0.00</span></div>
       <div class="row-line" id="rowDiskaun"><span>Diskaun</span><span id="fDiskaun">- RM 0.00</span></div>
@@ -281,6 +321,15 @@ const ADMIN_WHATSAPP = "60123456789";
 const namaBulan = ["", "Januari", "Februari", "Mac", "April", "Mei", "Jun",
   "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
 
+// Tukar "20:00" -> "8:00 PM" (format 12 jam)
+function format12Jam(hhmm) {
+  if (!hhmm) return "";
+  const [jam, minit] = hhmm.split(":").map(Number);
+  const suffix = jam >= 12 ? "PM" : "AM";
+  const j12 = jam % 12 === 0 ? 12 : jam % 12;
+  return j12 + ":" + String(minit || 0).padStart(2, "0") + " " + suffix;
+}
+
 function formatRM(n) {
   return "RM " + Number(n || 0).toFixed(2);
 }
@@ -293,6 +342,39 @@ function paparkanBil(d) {
   document.getElementById("fNama").textContent = d.nama;
   document.getElementById("fBulanTahun").textContent = (namaBulan[d.bulan] || d.bulan) + " " + d.tahun;
   document.getElementById("fJenis").textContent = d.jenis;
+  // Jadual tempahan (hari & waktu) — hanya untuk penyewa bulanan; Gerai & Fix Bulanan tiada (dikecualikan di server)
+  if (Array.isArray(d.jadual) && d.jadual.length > 0) {
+    const list = document.getElementById("jadualList");
+    list.innerHTML = "";
+    d.jadual.forEach(j => {
+      const row = document.createElement("div");
+      row.className = "jadual-row";
+      const spanHari = document.createElement("span");
+      spanHari.className = "jadual-hari";
+      spanHari.textContent = j.hari;
+      const spanMasa = document.createElement("span");
+      spanMasa.className = "jadual-masa";
+      spanMasa.textContent = format12Jam(j.mula) + " – " + format12Jam(j.tamat) + " (" + j.slot + " jam)";
+      row.appendChild(spanHari);
+      row.appendChild(spanMasa);
+      list.appendChild(row);
+    });
+    // OFF bulan ini — hanya dipaparkan jika ada
+    if (Array.isArray(d.cuti)) {
+      d.cuti.forEach(c => {
+        const row = document.createElement("div");
+        row.className = "cuti-row";
+        const kiri = document.createElement("strong");
+        kiri.textContent = "🚪 OFF — " + c.hari + ", " + c.tarikh;
+        const kanan = document.createElement("span");
+        kanan.textContent = format12Jam(c.mula) + " – " + format12Jam(c.tamat);
+        row.appendChild(kiri);
+        row.appendChild(kanan);
+        list.appendChild(row);
+      });
+    }
+    document.getElementById("jadualBox").classList.remove("d-none");
+  }
   document.getElementById("fJumlahAsal").textContent = formatRM(d.jumlahAsal);
   document.getElementById("fJumlahAkhir").textContent = formatRM(d.jumlahAkhir);
 
