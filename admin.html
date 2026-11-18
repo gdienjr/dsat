@@ -447,6 +447,19 @@ function renderDisahkan(senarai) {
         const slotPapar = item.slot.map(format12Jam).join(", ");
         const jumlah = item.slot.length * HARGA_SLOT;
         const barisList = item.barisList || [item.baris];
+        const adaResit = !!(item.token && item.noResit);
+        const resitHtml = adaResit
+            ? '<div class="alert alert-success py-2 small mb-2">🧾 Resit: <strong>' + item.noResit + '</strong>' +
+              (item.kaedahBayaran ? ' (' + item.kaedahBayaran + ')' : '') + '</div>' +
+              '<div class="d-flex gap-2 mb-2">' +
+                  '<button class="btn btn-success btn-sm flex-fill btnWaResit">💬 WA Resit</button>' +
+                  '<button class="btn btn-outline-primary btn-sm flex-fill btnBukaResit">🔗 Buka Resit</button>' +
+              '</div>'
+            : '<div class="small text-muted mb-1">🧾 Jana resit selepas bayaran diterima:</div>' +
+              '<div class="d-flex gap-2 mb-2">' +
+                  '<button class="btn btn-outline-success btn-sm flex-fill btnResitCash">💵 Cash</button>' +
+                  '<button class="btn btn-outline-success btn-sm flex-fill btnResitQR">📲 DuitNow QR</button>' +
+              '</div>';
         const div = document.createElement("div");
         div.className = "kad-tempahan";
         div.innerHTML =
@@ -462,7 +475,17 @@ function renderDisahkan(senarai) {
                 '<tr><td>⏰ Slot</td><td><strong>' + slotPapar + '</strong></td></tr>' +
                 '<tr><td>💰 Jumlah</td><td><strong class="text-success">RM' + jumlah.toFixed(2) + '</strong></td></tr>' +
             '</table>' +
+            resitHtml +
             '<button class="btn btn-outline-danger btn-sm w-100 btnBatal">🚫 Batal Tempahan</button>';
+        if (adaResit) {
+            div.querySelector(".btnWaResit").addEventListener("click", function() { waResitHarian(item); });
+            div.querySelector(".btnBukaResit").addEventListener("click", function() {
+                window.open(pautanResitHarian(item.token), "_blank");
+            });
+        } else {
+            div.querySelector(".btnResitCash").addEventListener("click", function() { janaResitHarian(item, barisList, "Cash"); });
+            div.querySelector(".btnResitQR").addEventListener("click", function() { janaResitHarian(item, barisList, "DuitNow QR"); });
+        }
         div.querySelector(".btnBatal").addEventListener("click", function() {
             tindakan(barisList, "Dibatal", item.nama, item.telefon, item.tarikh, item.slot);
         });
@@ -760,6 +783,44 @@ function renderSlotView(data) {
 
 function tutupModal() {
     document.getElementById("modalOverlay").style.display = "none";
+}
+
+// ===== RESIT PENYEWA HARIAN =====
+const BASE_RESIT = "https://gdienjr.github.io/dsat/resit.html";
+
+function pautanResitHarian(token) {
+    return BASE_RESIT + "?jenis=harian&id=" + encodeURIComponent(token);
+}
+
+async function janaResitHarian(item, barisList, kaedah) {
+    const slotPapar = item.slot.map(format12Jam).join(", ");
+    if (!confirm("Jana resit untuk " + item.nama + " (" + formatTarikh(item.tarikh) + ", " + slotPapar + ") — bayaran " + kaedah + "?")) return;
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ janaResitHarian: true, barisSenarai: barisList, kaedah: kaedah })
+        });
+        const result = await response.json();
+        if (!result.berjaya) { alert("Gagal jana resit."); return; }
+        await muatDisahkan();
+        alert("✅ Resit " + result.noResit + " dijana. Tekan 'WA Resit' untuk hantar kepada penyewa.");
+    } catch (err) {
+        console.error(err);
+        alert("Gagal jana resit. Sila cuba semula.");
+    }
+}
+
+function waResitHarian(item) {
+    const noWA = item.telefon.toString().startsWith("0") ? "6" + item.telefon : item.telefon;
+    const mesej =
+        "Assalamualaikum " + item.nama + ",\n" +
+        "Terima kasih atas pembayaran sewa dewan. 🙏\n\n" +
+        "🧾 No. Resit: " + item.noResit + "\n" +
+        "📅 Tarikh: " + formatTarikh(item.tarikh) + "\n" +
+        "⏰ Slot: " + item.slot.map(format12Jam).join(", ") + "\n" +
+        "💰 Jumlah: RM" + (item.slot.length * HARGA_SLOT).toFixed(2) + "\n\n" +
+        "Resit rasmi boleh dilihat/dicetak di sini:\n" + pautanResitHarian(item.token);
+    window.open("https://wa.me/" + noWA + "?text=" + encodeURIComponent(mesej), "_blank");
 }
 
 // ===== OFF PENYEWA TETAP =====
