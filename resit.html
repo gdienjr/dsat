@@ -188,9 +188,11 @@
 
   <div class="resit-body">
     <table class="detail-table">
-      <tr><td>No. Bil</td><td id="fNoBil">-</td></tr>
+      <tr id="rowNoBil"><td>No. Bil</td><td id="fNoBil">-</td></tr>
       <tr><td>Nama Penyewa</td><td id="fNama">-</td></tr>
-      <tr><td>Bulan / Tahun</td><td id="fBulanTahun">-</td></tr>
+      <tr id="rowBulanTahun"><td>Bulan / Tahun</td><td id="fBulanTahun">-</td></tr>
+      <tr id="rowTarikhSewa" class="d-none"><td>Tarikh Sewaan</td><td id="fTarikhSewa">-</td></tr>
+      <tr id="rowSlot" class="d-none"><td>Waktu Sewaan</td><td id="fSlot">-</td></tr>
       <tr><td>Jenis Sewaan</td><td id="fJenis">-</td></tr>
       <tr><td>Tarikh Bayaran</td><td id="fTarikhBayaran">-</td></tr>
       <tr><td>Kaedah Bayaran</td><td id="fKaedah">-</td></tr>
@@ -253,14 +255,69 @@ function paparkanRalat() {
   document.getElementById("errorWrap").classList.remove("d-none");
 }
 
+function format12Jam(masa24) {
+  const jam = parseInt(masa24.toString().split(":")[0]);
+  if (jam === 0) return "12:00 AM";
+  if (jam < 12) return jam + ":00 AM";
+  if (jam === 12) return "12:00 PM";
+  return (jam - 12) + ":00 PM";
+}
+
+// Gabung slot berturutan: ["20:00","21:00","23:00"] -> "8:00 PM - 10:00 PM, 11:00 PM - 12:00 AM"
+function formatJulat(slotArr) {
+  const jam = slotArr.map(s => parseInt(s.split(":")[0])).sort((a, b) => a - b);
+  const julat = [];
+  let mula = null, prev = null;
+  jam.forEach(function (j) {
+    if (mula === null) { mula = j; prev = j; return; }
+    if (j === prev + 1) { prev = j; return; }
+    julat.push([mula, prev]);
+    mula = j; prev = j;
+  });
+  if (mula !== null) julat.push([mula, prev]);
+  return julat.map(function (r) {
+    return format12Jam(r[0] + ":00") + " - " + format12Jam(((r[1] + 1) % 24) + ":00");
+  }).join(", ");
+}
+
+function formatTarikhPanjang(str) {
+  const d = new Date(str + "T00:00:00");
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString("ms-MY", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+function paparkanResitHarian(d) {
+  sembunyikanSemua();
+  document.getElementById("resitCard").classList.remove("d-none");
+
+  document.getElementById("rowNoBil").classList.add("d-none");
+  document.getElementById("rowBulanTahun").classList.add("d-none");
+  document.getElementById("rowTarikhSewa").classList.remove("d-none");
+  document.getElementById("rowSlot").classList.remove("d-none");
+  document.getElementById("btnLihatBil").classList.add("d-none");
+
+  document.getElementById("fNoResit").textContent = d.noResit || "-";
+  document.getElementById("fNama").textContent = d.nama;
+  document.getElementById("fJenis").textContent = "Sewaan Harian Dewan";
+  document.getElementById("fTarikhSewa").textContent = formatTarikhPanjang(d.tarikh);
+  document.getElementById("fSlot").textContent = formatJulat(d.slot) + " (" + d.slot.length + " slot)";
+  document.getElementById("fTarikhBayaran").textContent = d.tarikhBayaran || "-";
+  document.getElementById("fKaedah").textContent = d.kaedahBayaran;
+  document.getElementById("fJumlah").textContent = formatRM(d.jumlah);
+}
+
 (function muatResit() {
-  const token = new URLSearchParams(window.location.search).get("id");
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("id");
+  const harian = params.get("jenis") === "harian";
   if (!token) { paparkanRalat(); return; }
 
-  fetch(APPS_SCRIPT_URL + "?action=getResit&token=" + encodeURIComponent(token))
+  const action = harian ? "getResitHarian" : "getResit";
+  fetch(APPS_SCRIPT_URL + "?action=" + action + "&token=" + encodeURIComponent(token))
     .then(res => res.json())
     .then(data => {
       if (!data.jumpa) { paparkanRalat(); return; }
+      if (harian) { paparkanResitHarian(data); return; }
       if (!data.sudahBayar) { paparkanBelumBayar(); return; }
       paparkanResit(data);
     })
